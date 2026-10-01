@@ -307,7 +307,7 @@ fun lerp(start: Color, stop: Color, fraction: Float): Color =
 
 /** Confirm-on-second-tap button, like the web app's "Sure?" pattern. */
 @Composable
-fun AskButton(text: String, onConfirm: () -> Unit, small: Boolean = true, danger: Boolean = true) {
+fun AskButton(text: String, modifier: Modifier = Modifier, small: Boolean = true, onConfirm: () -> Unit) {
     var confirming by remember { mutableStateOf(false) }
     LaunchedEffect(confirming) {
         if (confirming) {
@@ -315,7 +315,6 @@ fun AskButton(text: String, onConfirm: () -> Unit, small: Boolean = true, danger
             confirming = false
         }
     }
-    val p = pal()
     AppButton(
         text = if (confirming) "Sure?" else text,
         onClick = {
@@ -325,7 +324,7 @@ fun AskButton(text: String, onConfirm: () -> Unit, small: Boolean = true, danger
             } else confirming = true
         },
         small = small,
-        modifier = Modifier
+        modifier = modifier
     )
 }
 

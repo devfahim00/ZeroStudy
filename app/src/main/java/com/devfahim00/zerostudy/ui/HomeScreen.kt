@@ -26,8 +26,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.PlayArrow
-import androidx.compose.material.icons.automirrored.rounded.SkipNext
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Fullscreen
@@ -294,7 +294,7 @@ private fun Controls() {
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                if (focus) Icons.Rounded.Check else Icons.AutoMirrored.Rounded.SkipNext,
+                if (focus) Icons.Rounded.Check else Icons.Rounded.SkipNext,
                 contentDescription = if (focus) "Save session" else "Skip break",
                 tint = pal().ink,
                 modifier = Modifier.size(22.dp)
@@ -309,7 +309,7 @@ private fun Controls() {
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                if (Model.S.tm.run) Icons.Rounded.Pause else Icons.AutoMirrored.Rounded.PlayArrow,
+                if (Model.S.tm.run) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                 contentDescription = if (Model.S.tm.run) "Pause" else if (Model.el() > 0) "Resume" else "Start",
                 tint = pal().bg,
                 modifier = Modifier.size(28.dp)

@@ -58,7 +58,7 @@ fun SettingsScreen() {
             GoalsCard()
             ExamCard()
             ThemeCard()
-            RevisionCard()
+            RevisionScheduleCard()
         }
     }
 }
@@ -281,7 +281,7 @@ private fun ThemeCard() {
 /* ---------------- revision schedule ---------------- */
 
 @Composable
-private fun RevisionCard() {
+private fun RevisionScheduleCard() {
     AppCard {
         H2("Revision schedule")
         Labeled("Revise N days after completing a chapter (comma separated)") {

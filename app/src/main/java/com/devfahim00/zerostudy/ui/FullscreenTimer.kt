@@ -24,7 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material3.Icon
@@ -78,7 +78,7 @@ fun FullscreenTimer() {
             FlipClock()
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 FsCircleBtn(
-                    icon = if (Model.S.tm.run) Icons.Rounded.Pause else Icons.AutoMirrored.Rounded.PlayArrow,
+                    icon = if (Model.S.tm.run) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     desc = if (Model.S.tm.run) "Pause" else "Resume"
                 ) { Model.toggle() }
                 FsCircleBtn(icon = Icons.Rounded.Close, desc = "Exit") { Model.fullscreen = false }

@@ -131,14 +131,14 @@ private fun SubjectCard(s: Subject) {
         ) {
             Dot(color)
             Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.Baseline) {
+                Row {
                     Text(
                         s.n,
                         style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.SemiBold, fontSize = 15.sp),
                         color = p.ink,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.alignByBaseline().weight(1f)
                     )
-                    Mut("${doneCh}/${s.ch.size} chapters", size = 13.sp)
+                    Mut("${doneCh}/${s.ch.size} chapters", size = 13.sp, modifier = Modifier.alignByBaseline())
                 }
                 Mut(
                     hm(tot) + " studied" + (if (s.wg > 0) " · " + hm(wkt) + " / " + fmtNum(s.wg) + "h this week" else ""),
