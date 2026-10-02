@@ -81,7 +81,11 @@ fun HomeScreen() {
             .padding(horizontal = 16.dp, vertical = 22.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(Modifier.fillMaxWidth().widthIn(max = 560.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+        Column(
+            Modifier.fillMaxWidth().widthIn(max = 560.dp),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             Pills()
             TimerStage()
             Controls()
@@ -95,24 +99,26 @@ fun HomeScreen() {
 
 /* ---------------- pills ---------------- */
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Pills() {
     val streak = Model.streak()
     val today = Model.todaySec()
     val gd = Model.S.goal.d
-    val examDays = Model.examDays()
-    val examName = Model.S.exam.n.ifBlank { "Exam" }
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically
+    val exams = Model.upcomingExams().take(3)
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Pill(Icons.Rounded.LocalFireDepartment, "$streak ${if (streak == 1) "day" else "days"}")
         Pill(Icons.Rounded.TrackChanges, hm(today) + (if (gd > 0) " / " + hm((gd * 3600).toLong()) else ""))
-        if (examDays != null && examDays >= 0) {
+        exams.forEach { (exam, days) ->
+            val name = exam.n.ifBlank { "Exam" }
             Pill(
                 Icons.Rounded.CalendarToday,
-                if (examDays == 0L) "$examName today"
-                else "$examDays ${if (examDays == 1L) "day" else "days"} to $examName"
+                if (days == 0L) "$name today"
+                else "$days ${if (days == 1L) "day" else "days"} to $name"
             )
         }
     }
@@ -281,8 +287,9 @@ private fun TimerCenter() {
 private fun Controls() {
     val focus = Model.S.ph == "f"
     Row(
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(18.dp)
+        horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally)
     ) {
         // stop / save / skip-break
         Box(

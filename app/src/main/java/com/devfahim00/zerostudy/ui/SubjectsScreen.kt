@@ -7,8 +7,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -22,12 +23,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,7 +74,6 @@ private fun AddSubjectCard() {
     AppCard {
         H2("Add a subject")
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            val fm = androidx.compose.ui.platform.LocalFocusManager.current
             fun tryAdd() {
                 if (Model.addSubject(name)) name = ""
             }
@@ -98,6 +96,7 @@ private fun AddSubjectCard() {
 
 /* ---------------- subject card ---------------- */
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SubjectCard(s: Subject) {
     val p = pal()
@@ -123,11 +122,17 @@ private fun SubjectCard(s: Subject) {
     val (tot, wkt, chTime) = stats
     val doneCh = s.ch.count { it.done > 0 }
 
+    // which optional panel is showing below the chapter list: "", "chapter" or "target"
+    var panel by remember(s.id) { mutableStateOf("") }
+
     AppCard {
+        // header: always visible, tap to expand
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.clickable { Model.setOpen(s.id, !open) }
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { Model.setOpen(s.id, !open) }
         ) {
             Dot(color)
             Column(Modifier.weight(1f)) {
@@ -154,25 +159,36 @@ private fun SubjectCard(s: Subject) {
             }
             Chevron(open)
         }
+
+        // body: just the chapter list plus a small action row
         AnimatedVisibility(visible = open) {
-            Column(Modifier.padding(top = 14.dp)) {
-                WeeklyTarget(s, wkt)
-                Spacer(Modifier.height(12.dp))
+            Column(Modifier.padding(top = 12.dp)) {
+                ItemDivider()
                 if (s.ch.isEmpty()) {
-                    Mut("No chapters yet.")
+                    Mut("No chapters yet. Tap \"Add chapter\" to start.", modifier = Modifier.padding(vertical = 14.dp))
                 } else {
-                    Column {
-                        s.ch.forEachIndexed { i, c ->
-                            if (i > 0) ItemDivider()
-                            ChapterRow(s, c, chTime[c.id] ?: 0L)
-                        }
+                    s.ch.forEachIndexed { i, c ->
+                        if (i > 0) ItemDivider()
+                        ChapterRow(s, c, chTime[c.id] ?: 0L)
                     }
                 }
-                Spacer(Modifier.height(12.dp))
-                AddChapterRow(s)
-                Spacer(Modifier.height(10.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                ItemDivider()
+
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Chip("Add chapter", panel == "chapter", color) { panel = if (panel == "chapter") "" else "chapter" }
+                    Chip("Weekly target", panel == "target", color) { panel = if (panel == "target") "" else "target" }
                     AskButton("Remove subject") { Model.removeSubject(s.id) }
+                }
+
+                AnimatedVisibility(visible = panel == "chapter") {
+                    Box(Modifier.padding(top = 12.dp)) { AddChapterRow(s) }
+                }
+                AnimatedVisibility(visible = panel == "target") {
+                    Box(Modifier.padding(top = 12.dp)) { WeeklyTarget(s, wkt) }
                 }
             }
         }
@@ -183,7 +199,7 @@ private fun SubjectCard(s: Subject) {
 private fun WeeklyTarget(s: Subject, wkt: Long) {
     Column {
         Row {
-            Mut("Weekly target", size = 13.sp, modifier = Modifier.weight(1f))
+            Mut("This week", size = 13.sp, modifier = Modifier.weight(1f))
             Mut(
                 hm(wkt) + (if (s.wg > 0) " / " + fmtNum(s.wg) + "h" else ""),
                 size = 13.sp
@@ -205,24 +221,35 @@ private fun WeeklyTarget(s: Subject, wkt: Long) {
             },
             placeholder = "Weekly target (hours)",
             keyboard = KeyboardType.Decimal,
-            modifier = Modifier.padding(top = 6.dp)
+            modifier = Modifier.padding(top = 8.dp)
         )
     }
 }
 
 /* ---------------- chapter row ---------------- */
 
+/**
+ * Compact by default: checkbox, name and a one-line status.
+ * Tap the row to reveal difficulty, note, revision progress and delete.
+ */
 @Composable
 private fun ChapterRow(s: Subject, c: Chapter, studiedSec: Long) {
     val p = pal()
     val color = subjectColor(s.c)
     val done = c.done > 0
-    Column(Modifier.padding(vertical = 10.dp)) {
-        Row(verticalAlignment = Alignment.Top) {
-            // checkbox
+    var expanded by remember(c.id) { mutableStateOf(false) }
+
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+                .padding(vertical = 10.dp)
+        ) {
             Box(
                 Modifier
-                    .size(28.dp)
+                    .size(26.dp)
                     .background(if (done) color else p.card, RoundedCornerShape(8.dp))
                     .border(1.dp, if (done) color else p.line, RoundedCornerShape(8.dp))
                     .clickable { Model.toggleChapterDone(s.id, c.id) },
@@ -231,29 +258,37 @@ private fun ChapterRow(s: Subject, c: Chapter, studiedSec: Long) {
                 if (done) {
                     Icon(
                         Icons.Rounded.Check,
-                        contentDescription = if (done) "Unmark complete" else "Mark complete",
+                        contentDescription = "Unmark complete",
                         tint = Color(0xFF05060A),
                         modifier = Modifier.size(16.dp)
                     )
                 }
             }
-            Column(Modifier.weight(1f).padding(start = 10.dp)) {
+            Column(Modifier.weight(1f).padding(start = 12.dp, end = 8.dp)) {
                 Text(
                     c.n,
                     style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 15.sp),
                     color = if (done) p.mut else p.ink
                 )
-                Mut(
-                    Model.chStatus(c) + (if (studiedSec > 0) " · " + hm(studiedSec) + " studied" else ""),
-                    size = 13.sp,
-                    modifier = Modifier.padding(top = 1.dp)
-                )
-                if (done && c.rv > 0) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(top = 5.dp)) {
+                Mut(Model.chStatus(c), size = 12.sp, modifier = Modifier.padding(top = 1.dp))
+            }
+            Chevron(expanded, size = 20.dp)
+        }
+
+        AnimatedVisibility(visible = expanded) {
+            Column(Modifier.padding(start = 38.dp, bottom = 12.dp)) {
+                if (studiedSec > 0) {
+                    Mut(hm(studiedSec) + " studied on this chapter", size = 12.sp)
+                }
+                if (done) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(top = 8.dp)
+                    ) {
                         repeat(Model.S.cfg.rv.size) { i ->
                             Box(
                                 Modifier
-                                    .width(16.dp)
+                                    .width(18.dp)
                                     .height(5.dp)
                                     .background(if (i < c.rv) color else p.line, RoundedCornerShape(3.dp))
                             )
@@ -263,7 +298,7 @@ private fun ChapterRow(s: Subject, c: Chapter, studiedSec: Long) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(top = 6.dp)
+                    modifier = Modifier.padding(top = 10.dp)
                 ) {
                     listOf("e" to "Easy", "m" to "Medium", "h" to "Hard").forEach { (k, label) ->
                         val on = c.dif == k
@@ -274,58 +309,21 @@ private fun ChapterRow(s: Subject, c: Chapter, studiedSec: Long) {
                         }
                         Text(
                             label,
-                            style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 11.sp),
+                            style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 12.sp),
                             color = if (on) Color(0xFF05060A) else p.mut,
                             modifier = Modifier
                                 .background(if (on) kc else p.card, RoundedCornerShape(99.dp))
                                 .border(1.dp, if (on) Color.Transparent else p.line, RoundedCornerShape(99.dp))
                                 .clickable { Model.setDiff(s.id, c.id, k) }
-                                .padding(horizontal = 10.dp, vertical = 3.dp)
+                                .padding(horizontal = 12.dp, vertical = 5.dp)
                         )
                     }
                 }
                 NoteField(s, c)
-            }
-            ConfirmDeleteIcon { Model.removeChapter(s.id, c.id) }
-        }
-    }
-}
-
-/** Web-style "Sure?" confirmation on the chapter delete button. */
-@Composable
-private fun ConfirmDeleteIcon(onConfirm: () -> Unit) {
-    var confirming by remember { mutableStateOf(false) }
-    LaunchedEffect(confirming) {
-        if (confirming) {
-            kotlinx.coroutines.delay(2500)
-            confirming = false
-        }
-    }
-    if (confirming) {
-        Text(
-            "Sure?",
-            style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 13.sp),
-            color = pal().red,
-            modifier = Modifier
-                .clickable {
-                    confirming = false
-                    onConfirm()
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
+                    AskButton("Delete chapter") { Model.removeChapter(s.id, c.id) }
                 }
-                .padding(horizontal = 6.dp)
-        )
-    } else {
-        Box(
-            Modifier
-                .size(28.dp)
-                .clickable { confirming = true },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                Icons.Rounded.Close,
-                contentDescription = "Delete chapter",
-                tint = pal().mut,
-                modifier = Modifier.size(15.dp)
-            )
+            }
         }
     }
 }
@@ -337,14 +335,14 @@ private fun NoteField(s: Subject, c: Chapter) {
     OutlinedTextField(
         value = text,
         onValueChange = { if (it.length <= 140) text = it },
-        placeholder = { Mut("Note", size = 12.sp) },
+        placeholder = { Mut("Add a note", size = 12.sp) },
         singleLine = true,
         shape = RoundedCornerShape(10.dp),
         colors = AppTextFieldColors(),
-        textStyle = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 12.sp),
+        textStyle = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 13.sp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 6.dp)
+            .padding(top = 10.dp)
             .onFocusChanged { f ->
                 if (focused && !f.isFocused && text.trim() != c.note) Model.setNote(s.id, c.id, text)
                 focused = f.isFocused
@@ -362,7 +360,7 @@ private fun AddChapterRow(s: Subject) {
         OutlinedTextField(
             value = name,
             onValueChange = { if (it.length <= 60) name = it },
-            placeholder = { Mut("Add chapter", size = 15.sp) },
+            placeholder = { Mut("Chapter name", size = 15.sp) },
             singleLine = true,
             shape = RoundedCornerShape(12.dp),
             colors = AppTextFieldColors(),

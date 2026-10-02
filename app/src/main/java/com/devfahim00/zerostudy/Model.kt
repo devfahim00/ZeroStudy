@@ -43,7 +43,7 @@ data class Cfg(val f: Int = 25, val b: Int = 5, val rv: List<Int> = listOf(1, 3,
 
 data class TimerState(val run: Boolean = false, val start: Long = 0, val acc: Long = 0)
 
-data class Exam(val n: String = "", val d: String = "")
+data class Exam(val id: String = "", val n: String = "", val d: String = "")
 
 data class AppState(
     val subs: List<Subject> = emptyList(),
@@ -54,7 +54,8 @@ data class AppState(
     val cfg: Cfg = Cfg(),
     val ph: String = "f",
     val open: List<String> = emptyList(),
-    val exam: Exam = Exam(),
+    val exam: Exam = Exam(), // legacy single exam, migrated into [exams]
+    val exams: List<Exam> = emptyList(),
     val theme: String = "dark",
     val sc: String = ""
 )
@@ -98,6 +99,13 @@ object Model {
     @Suppress("UNNECESSARY_SAFE_CALL")
     private fun fix(s: AppState?): AppState {
         if (s == null) return AppState()
+        val legacy = s.exam ?: Exam()
+        val loaded = (s.exams ?: emptyList()).mapIndexed { i, e ->
+            if (e.id.isNullOrBlank()) e.copy(id = "e" + System.currentTimeMillis().toString(36) + i) else e
+        }
+        val migrated = if (loaded.isEmpty() && !legacy.d.isNullOrBlank()) {
+            listOf(Exam(id = "e" + System.currentTimeMillis().toString(36), n = legacy.n ?: "", d = legacy.d))
+        } else loaded
         return AppState(
             subs = (s.subs ?: emptyList()).map { sub ->
                 sub.copy(ch = (sub.ch ?: emptyList()).map { it.copy() })
@@ -109,7 +117,8 @@ object Model {
             cfg = (s.cfg ?: Cfg()).let { it.copy(rv = if (it.rv.isNullOrEmpty()) listOf(1, 3, 7, 15, 30) else it.rv) },
             ph = if (s.ph.isNullOrBlank()) "f" else s.ph,
             open = s.open ?: emptyList(),
-            exam = s.exam ?: Exam(),
+            exam = Exam(),
+            exams = migrated,
             theme = if (s.theme.isNullOrBlank()) "dark" else s.theme,
             sc = s.sc ?: ""
         )
@@ -142,7 +151,9 @@ object Model {
 
     fun el(): Long {
         val t = S.tm
-        val n = System.currentTimeMillis()
+        // Reading `now` subscribes any composable that calls this to the 250 ms
+        // ticker, so the countdown actually redraws while the timer runs.
+        val n = maxOf(System.currentTimeMillis(), now)
         return t.acc + (if (t.run) n - t.start else 0L)
     }
 
@@ -484,13 +495,26 @@ object Model {
         save()
     }
 
-    fun setExamName(n: String) {
-        S = S.copy(exam = S.exam.copy(n = n.take(30)))
+    fun addExam(name: String, date: String): Boolean {
+        if (date.isBlank()) {
+            toast("Pick an exam date")
+            return false
+        }
+        val n = name.trim().take(30).ifBlank { "Exam" }
+        S = S.copy(
+            exams = S.exams + Exam(
+                id = "e" + System.currentTimeMillis().toString(36) + (0..999).random(),
+                n = n,
+                d = date
+            )
+        )
         save()
+        toast("Added $n")
+        return true
     }
 
-    fun setExamDate(d: String) {
-        S = S.copy(exam = S.exam.copy(d = d))
+    fun removeExam(id: String) {
+        S = S.copy(exams = S.exams.filter { it.id != id })
         save()
     }
 
@@ -513,15 +537,18 @@ object Model {
         return true
     }
 
-    /** Days until the exam, or null when no valid future date is set. */
-    fun examDays(): Long? {
-        val d = S.exam.d
+    /** Days from today until [d] (ISO date), or null when it can't be parsed. */
+    fun daysUntil(d: String): Long? {
         if (d.isBlank()) return null
         return try {
-            val date = LocalDate.parse(d)
-            ChronoUnit.DAYS.between(LocalDate.now(), date)
+            ChronoUnit.DAYS.between(LocalDate.now(), LocalDate.parse(d))
         } catch (e: Exception) {
             null
         }
     }
+
+    /** Exams that have not passed yet, nearest first, paired with days left. */
+    fun upcomingExams(): List<Pair<Exam, Long>> =
+        S.exams.mapNotNull { e -> daysUntil(e.d)?.takeIf { it >= 0 }?.let { e to it } }
+            .sortedBy { it.second }
 }

@@ -1,6 +1,9 @@
 package com.devfahim00.zerostudy
 
 import android.app.Activity
+import android.content.pm.ActivityInfo
+import android.os.Build
+import android.view.WindowManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -112,10 +115,19 @@ fun App() {
         val window = (view.context as Activity).window
         val controller = WindowCompat.getInsetsController(window, view)
         if (Model.fullscreen) {
+            // landscape clock that follows the sensor (flips between both landscape sides)
+            window.attributes = window.attributes.also {
+                if (Build.VERSION.SDK_INT >= 28) {
+                    it.layoutInDisplayCutoutMode =
+                        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
+            (view.context as Activity).requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             controller.systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             controller.hide(WindowInsetsCompat.Type.systemBars())
         } else {
+            (view.context as Activity).requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             controller.show(WindowInsetsCompat.Type.systemBars())
         }
     }

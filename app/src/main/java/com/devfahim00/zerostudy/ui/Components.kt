@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.focusable
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.focus.onFocusChanged
@@ -329,12 +330,15 @@ fun AskButton(text: String, modifier: Modifier = Modifier, small: Boolean = true
 }
 
 @Composable
-fun Chevron(open: Boolean) {
+fun Chevron(open: Boolean, size: Dp = 22.dp) {
+    val rot by animateFloatAsState(if (open) 180f else 0f, tween(220), label = "chevron")
     Icon(
         Icons.Rounded.ExpandMore,
         contentDescription = if (open) "Collapse" else "Expand",
         tint = pal().mut,
-        modifier = Modifier.size(22.dp)
+        modifier = Modifier
+            .size(size)
+            .graphicsLayer { rotationZ = rot }
     )
 }
 
