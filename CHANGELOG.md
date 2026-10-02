@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.1] - 2026-10-02
+
+### Fixed
+- **Hyper Island is no longer too wide.** The island used to show a label, the time and a status text plus a second icon, which pushed status bar icons out of view. It is now a small pill with the icon and only the time.
+
+### New
+- **Hyper Island settings (Xiaomi / HyperOS).** Settings → Hyper Island lets you pick the style: **Compact** (icon + time), **Icon only** (narrowest) or **Off** (normal timer notification only). The same page shows whether Focus / Island notifications are allowed and opens the notification settings.
+- The full details (focus or break, subject, time left) are still shown when you open the island or pull down the notification.
+
 ## [1.2.0] - 2026-10-02
 
 ### New
