@@ -63,31 +63,23 @@ object HyperIsland {
         return Bundle().apply { putBundle("miui.focus.pics", pics) }
     }
 
-    /** Attaches the island JSON to a built notification. */
-    fun attach(n: Notification, title: String, time: String, status: String) {
+    /**
+     * Attaches the island JSON to a built notification.
+     *
+     * [style] "compact": small pill with the icon and only the time, so the status bar keeps
+     * its room. "icon": just the icon in the pill (time is still in the expanded card).
+     */
+    fun attach(n: Notification, title: String, time: String, status: String, style: String) {
         try {
             val pic = JSONObject().put("type", 1).put("pic", PIC_ICON)
+            val left = JSONObject().put("type", 1).put("picInfo", pic)
+            if (style == "compact") {
+                // only the time: no label or sub text, which is what made the island wide
+                left.put("textInfo", JSONObject().put("title", time).put("useHighLight", false))
+            }
             val island = JSONObject()
                 .put("islandProperty", 1)
-                .put(
-                    "bigIslandArea",
-                    JSONObject()
-                        .put(
-                            "imageTextInfoLeft",
-                            JSONObject()
-                                .put("type", 1)
-                                .put("picInfo", pic)
-                                .put(
-                                    "textInfo",
-                                    JSONObject()
-                                        .put("frontTitle", title)
-                                        .put("title", time)
-                                        .put("content", status)
-                                        .put("useHighLight", false)
-                                )
-                        )
-                        .put("picInfo", pic)
-                )
+                .put("bigIslandArea", JSONObject().put("imageTextInfoLeft", left))
                 .put("smallIslandArea", JSONObject().put("picInfo", pic))
             val v2 = JSONObject()
                 .put("protocol", 1)
@@ -95,7 +87,7 @@ object HyperIsland {
                 .put("enableFloat", false)
                 .put("islandFirstFloat", false)
                 .put("updatable", true)
-                .put("ticker", "$title  $time")
+                .put("ticker", time)
                 .put("tickerPic", PIC_ICON)
                 .put("aodTitle", "$title  $time")
                 .put("aodPic", PIC_ICON)

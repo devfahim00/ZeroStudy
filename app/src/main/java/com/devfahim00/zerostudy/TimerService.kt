@@ -33,7 +33,8 @@ class TimerService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private var foreground = false
     private var lastSig = ""
-    private val island by lazy { HyperIsland.supported(this) }
+    private val islandSupported by lazy { HyperIsland.supported(this) }
+    private val island: Boolean get() = islandSupported && Model.S.isl != "off"
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -126,7 +127,7 @@ class TimerService : Service() {
 
     private fun signature(): String {
         val t = Model.S.tm
-        return "${Model.S.ph}|${t.run}|${t.start}|${t.acc}|${Model.tgt()}|${subjectLabel()}"
+        return "${Model.S.ph}|${t.run}|${t.start}|${t.acc}|${Model.tgt()}|${subjectLabel()}|${Model.S.isl}"
     }
 
     private fun subjectLabel(): String {
@@ -187,10 +188,10 @@ class TimerService : Service() {
             val status = when {
                 !t.run -> "Paused"
                 target <= 0L -> "Stopwatch"
-                focus -> "left"
-                else -> "break left"
+                else -> "left"
             }
-            HyperIsland.attach(n, if (focus) "Focus" else "Break", time, status)
+            val label = (if (focus) "Focus" else "Break") + (if (focus && subject.isNotEmpty()) " · $subject" else "")
+            HyperIsland.attach(n, label, time, status, Model.S.isl)
         }
         return n
     }

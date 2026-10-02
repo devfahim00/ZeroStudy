@@ -114,6 +114,10 @@ fun SettingsScreen() {
                     PageHeader("Backup & restore") { page = "" }
                     BackupPage()
                 }
+                "island" -> {
+                    PageHeader("Hyper Island") { page = "" }
+                    IslandPage()
+                }
                 "sound" -> {
                     PageHeader("Alert sound") { page = "" }
                     SoundPage()
@@ -178,7 +182,9 @@ private fun SettingsMenu(onOpen: (String) -> Unit) {
                 (if (Model.S.exams.size > 1) " · ${Model.S.exams.size} exams" else "")
         }
     }
-    val items = listOf(
+    val ctx = LocalContext.current
+    val islandOn = remember { HyperIsland.supported(ctx) }
+    val items = listOfNotNull(
         MenuItem(
             "timer", "Timer",
             if (cfg.f == 0) "Free stopwatch" else "${cfg.f} min focus · ${cfg.b} min break",
@@ -194,6 +200,11 @@ private fun SettingsMenu(onOpen: (String) -> Unit) {
             AlertSounds.byId(Model.S.snd).name,
             Icons.Rounded.NotificationsActive
         ),
+        if (islandOn) MenuItem(
+            "island", "Hyper Island",
+            when (Model.S.isl) { "icon" -> "Icon only"; "off" -> "Off"; else -> "Compact · icon + time" },
+            Icons.Rounded.Timer
+        ) else null,
         MenuItem(
             "backup", "Backup & restore",
             "Export or import all your data",
@@ -330,6 +341,45 @@ private fun SoundPage() {
     }
 }
 
+/* ---------------- hyper island ---------------- */
+
+@Composable
+private fun IslandPage() {
+    val p = pal()
+    val ctx = LocalContext.current
+    var allowed by remember { mutableStateOf<Boolean?>(null) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { allowed = HyperIsland.hasPermission(ctx) }
+    val styles = listOf("compact", "icon", "off")
+    val sel = styles.indexOf(Model.S.isl).takeIf { it >= 0 } ?: 0
+
+    AppCard {
+        H2("Style")
+        Seg(listOf("Compact", "Icon only", "Off"), sel) { Model.setIslandStyle(styles[it]) }
+        Mut(
+            when (Model.S.isl) {
+                "icon" -> "Only the app icon sits in the island, so it takes the least room. Open the island to see the time."
+                "off" -> "No island. You still get the normal timer notification."
+                else -> "A small pill with the icon and only the time, so your status bar icons keep their space."
+            },
+            size = 12.sp,
+            modifier = Modifier.padding(top = 12.dp)
+        )
+    }
+    AppCard {
+        H2("Permission")
+        Mut(
+            when (allowed) {
+                true -> "Focus / Island notifications are allowed for ZeroStudy."
+                false -> "Not allowed yet. Open the notification settings and turn on Focus / Island notifications for ZeroStudy."
+                null -> "Checking…"
+            },
+            size = 12.sp,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+        AppButton("Open notification settings", onClick = { HyperIsland.openSettings(ctx) })
+    }
+}
+
 /* ---------------- backup ---------------- */
 
 @Composable
@@ -460,45 +510,6 @@ private fun CommunityCard() {
                 Mut("Updates, help and feedback", size = 12.sp, modifier = Modifier.padding(top = 2.dp))
             }
             Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = p.mut, modifier = Modifier.size(22.dp))
-        }
-        if (HyperIsland.supported(ctx)) {
-            ItemDivider()
-            var allowed by remember { mutableStateOf<Boolean?>(null) }
-            androidx.compose.runtime.LaunchedEffect(Unit) { allowed = HyperIsland.hasPermission(ctx) }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { HyperIsland.openSettings(ctx) }
-                    .padding(vertical = 6.dp)
-            ) {
-                Box(
-                    Modifier
-                        .size(40.dp)
-                        .background(p.inp, RoundedCornerShape(12.dp))
-                        .border(1.dp, p.line, RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Rounded.Timer, contentDescription = null, tint = p.a, modifier = Modifier.size(20.dp))
-                }
-                Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
-                    Text(
-                        "Hyper Island timer",
-                        style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 15.sp),
-                        color = p.ink
-                    )
-                    Mut(
-                        when (allowed) {
-                            true -> "On · timer shows around the camera"
-                            false -> "Off · tap and allow Focus / Island notifications"
-                            null -> "Checking…"
-                        },
-                        size = 12.sp,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-                }
-                Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = p.mut, modifier = Modifier.size(22.dp))
-            }
         }
         ItemDivider()
         // check for update

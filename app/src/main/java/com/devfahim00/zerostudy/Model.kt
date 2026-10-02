@@ -71,7 +71,8 @@ data class AppState(
     val exams: List<Exam> = emptyList(),
     val theme: String = "dark",
     val sc: String = "",
-    val snd: String = "sonar" // id of the chosen alert sound (see AlertSounds)
+    val snd: String = "sonar", // id of the chosen alert sound (see AlertSounds)
+    val isl: String = "compact" // Hyper Island style: compact | icon | off
 )
 
 /* ---------------- model ---------------- */
@@ -158,7 +159,8 @@ object Model {
             exams = migrated,
             theme = if (s.theme.isNullOrBlank()) "dark" else s.theme,
             sc = s.sc ?: "",
-            snd = AlertSounds.byId(s.snd).id
+            snd = AlertSounds.byId(s.snd).id,
+            isl = if (s.isl in listOf("compact", "icon", "off")) s.isl else "compact"
         )
     }
 
@@ -242,6 +244,12 @@ object Model {
                 }
         } catch (_: Exception) {
         }
+    }
+
+    fun setIslandStyle(style: String) {
+        S = S.copy(isl = style)
+        save()
+        syncService()
     }
 
     fun setSound(id: String) {
