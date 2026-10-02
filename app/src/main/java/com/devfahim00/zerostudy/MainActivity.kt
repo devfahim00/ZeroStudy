@@ -1,6 +1,10 @@
 package com.devfahim00.zerostudy
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import android.content.pm.ActivityInfo
 import android.os.Build
 import android.view.WindowManager
@@ -33,6 +37,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BarChart
+import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Tune
@@ -67,6 +72,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.devfahim00.zerostudy.ui.FullscreenTimer
 import com.devfahim00.zerostudy.ui.HomeScreen
+import com.devfahim00.zerostudy.ui.RevisionsScreen
 import com.devfahim00.zerostudy.ui.SettingsScreen
 import com.devfahim00.zerostudy.ui.StatsScreen
 import com.devfahim00.zerostudy.ui.SubjectsScreen
@@ -75,9 +81,30 @@ import com.devfahim00.zerostudy.ui.pal
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
+
+    // Android 13+ needs a runtime permission to show the timer notification
+    private val notifPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
+    override fun onStart() {
+        super.onStart()
+        Model.appVisible = true
+        Model.syncService() // resumes the notification if a timer is active
+    }
+
+    override fun onStop() {
+        Model.appVisible = false
+        super.onStop()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Model.init(applicationContext)
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
         enableEdgeToEdge()
         setContent {
             ZeroStudyTheme {
@@ -144,6 +171,7 @@ fun App() {
 
     val items = listOf(
         NavItem("home", "Home", Icons.Rounded.Home),
+        NavItem("revisions", "Revisions", Icons.Rounded.CalendarMonth),
         NavItem("stats", "Stats", Icons.Rounded.BarChart),
         NavItem("subjects", "Subjects", Icons.Rounded.MenuBook),
         NavItem("settings", "Settings", Icons.Rounded.Tune)
@@ -176,6 +204,7 @@ fun App() {
                 key(tab) {
                     when (tab) {
                         "home" -> HomeScreen()
+                        "revisions" -> RevisionsScreen()
                         "stats" -> StatsScreen()
                         "subjects" -> SubjectsScreen()
                         "settings" -> SettingsScreen()
@@ -226,7 +255,7 @@ private fun BottomNav(items: List<NavItem>, current: String, onTab: (String) -> 
                             tint = if (on) p.ink else p.mut,
                             modifier = Modifier.size(22.dp)
                         )
-                        if (item.id == "home" && dueCount > 0) {
+                        if (item.id == "revisions" && dueCount > 0) {
                             Box(
                                 Modifier
                                     .align(Alignment.TopEnd)

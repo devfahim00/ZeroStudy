@@ -96,6 +96,18 @@ object Model {
 
     private var player: MediaPlayer? = null
 
+    /** True while the activity is on screen (used to skip the \"session done\" notification). */
+    @Volatile var appVisible = false
+
+    /** Starts / refreshes / stops the foreground timer notification to match the timer state. */
+    fun syncService() {
+        if (!::appCtx.isInitialized) return
+        try {
+            TimerService.sync(appCtx)
+        } catch (_: Exception) {
+        }
+    }
+
     fun init(ctx: Context) {
         if (::appCtx.isInitialized) return
         appCtx = ctx.applicationContext
@@ -108,6 +120,7 @@ object Model {
             }
         } else AppState()
         migrateDefaultSound()
+        rebalanceFuture()
     }
 
     /** v1.0.0 stored "beep" as the default sound; the default is now "sonar". One-time switch. */
@@ -245,6 +258,7 @@ object Model {
         }
         val over = e - t
         val nowMs = System.currentTimeMillis()
+        val wasFocus = S.ph == "f"
         if (S.ph == "f") {
             S = S.copy(ses = S.ses + Session(t = nowMs - over, d = (t / 1000).toInt(), s = S.sel.toList(), c = effSc()))
             if (S.cfg.b > 0) {
@@ -261,6 +275,12 @@ object Model {
         }
         save()
         beep()
+        TimerService.notifyDone(
+            appCtx,
+            if (wasFocus) "Session done" else "Break over",
+            if (!wasFocus) "Ready for the next session" else if (S.ph == "b") "Break started" else "Nice work"
+        )
+        syncService()
         advance()
     }
 
@@ -276,6 +296,7 @@ object Model {
             S.copy(tm = t.copy(start = System.currentTimeMillis(), run = true))
         }
         save()
+        syncService()
     }
 
     fun stop() {
@@ -283,6 +304,7 @@ object Model {
             S = S.copy(ph = "f")
             resetTm()
             save()
+            syncService()
             return
         }
         val e = el()
@@ -291,6 +313,7 @@ object Model {
             resetTm()
             save()
             toast("Under 5 seconds, not saved. Timer reset")
+            syncService()
             return
         }
         S = S.copy(
@@ -303,6 +326,7 @@ object Model {
         )
         resetTm()
         save()
+        syncService()
         toast("Saved " + hm(e / 1000))
     }
 
@@ -406,23 +430,58 @@ object Model {
     fun dueShownCount(): Int = minOf(dueNow().size, revCap())
 
     /** How many revisions are already planned for each day from today (overdue counts as today). */
-    private fun loadByDay(): MutableMap<Long, Int> {
+    private fun loadByDay(excludeChapter: String? = null): MutableMap<Long, Int> {
         val m = mutableMapOf<Long, Int>()
         val n = System.currentTimeMillis()
         dueItems().forEach {
+            if (it.ch.id == excludeChapter) return@forEach
             val k = maxOf(0L, dayDiff(it.due, n))
             m[k] = (m[k] ?: 0) + 1
         }
         return m
     }
 
-    /** Earliest day (>= the first interval) that still has room under the daily cap. */
-    private fun takeSlot(load: MutableMap<Long, Int>): Long {
+    /** Earliest day >= [minDay] that still has room under the daily cap. Reserves that slot. */
+    private fun placeDay(load: MutableMap<Long, Int>, minDay: Long): Long {
         val cap = revCap()
-        var day = S.cfg.rv.first().toLong()
+        var day = maxOf(1L, minDay)
         while ((load[day] ?: 0) >= cap) day++
         load[day] = (load[day] ?: 0) + 1
         return day
+    }
+
+    /** Earliest day (>= the first interval) that still has room under the daily cap. */
+    private fun takeSlot(load: MutableMap<Long, Int>): Long = placeDay(load, S.cfg.rv.first().toLong())
+
+    /**
+     * Makes sure no future day holds more than [revCap] revisions. Extra chapters move to
+     * the next day that has room. Runs on start-up and whenever the cap or schedule changes,
+     * which also repairs days that were overfilled by older versions.
+     */
+    fun rebalanceFuture() {
+        val cap = revCap()
+        val nowMs = System.currentTimeMillis()
+        val items = dueItems().filter { dayDiff(it.due, nowMs) >= 1 }
+        if (items.isEmpty()) return
+        val byDay = java.util.TreeMap<Long, MutableList<DueItem>>()
+        items.forEach { byDay.getOrPut(dayDiff(it.due, nowMs)) { mutableListOf() }.add(it) }
+        val moved = mutableMapOf<String, Long>()
+        var d = byDay.firstKey()
+        while (d <= byDay.lastKey()) {
+            val list = byDay[d]
+            if (list != null && list.size > cap) {
+                val extra = list.subList(cap, list.size).toList()
+                while (list.size > cap) list.removeAt(list.size - 1)
+                val next = byDay.getOrPut(d + 1) { mutableListOf() }
+                extra.forEach { moved[it.ch.id] = addDays(nowMs, d + 1); next.add(it) }
+            }
+            d++
+        }
+        if (moved.isEmpty()) return
+        S = S.copy(subs = S.subs.map { sub ->
+            sub.copy(ch = sub.ch.map { c -> moved[c.id]?.let { c.copy(nx = it) } ?: c })
+        })
+        save()
     }
 
     /**
@@ -462,6 +521,7 @@ object Model {
     fun setRevCap(n: Int) {
         S = S.copy(cfg = S.cfg.copy(cap = n.coerceIn(1, 50)))
         save()
+        rebalanceFuture()
     }
 
     fun revise(subId: String, chId: String, ok: Boolean) {
@@ -471,7 +531,20 @@ object Model {
         if (ci < 0) return
         val c = S.subs[si].ch[ci]
         val nowMs = System.currentTimeMillis()
-        val nc = if (ok) c.copy(rv = c.rv + 1, last = nowMs, nx = 0) else c.copy(rv = 0, done = nowMs, last = 0, nx = 0, bk = false)
+        val load = loadByDay(excludeChapter = chId)
+        val nc = if (ok) {
+            val nrv = c.rv + 1
+            if (nrv >= S.cfg.rv.size) {
+                c.copy(rv = nrv, last = nowMs, nx = 0)
+            } else {
+                val natural = maxOf(addDays(c.done, S.cfg.rv[nrv].toLong()), addDays(nowMs, 1))
+                val day = placeDay(load, dayDiff(natural, nowMs))
+                c.copy(rv = nrv, last = nowMs, nx = addDays(nowMs, day))
+            }
+        } else {
+            val day = placeDay(load, S.cfg.rv.first().toLong())
+            c.copy(rv = 0, done = nowMs, last = 0, nx = addDays(nowMs, day), bk = false)
+        }
         val nchapters = S.subs[si].ch.toMutableList().also { it[ci] = nc }
         S = S.copy(subs = S.subs.toMutableList().also { it[si] = S.subs[si].copy(ch = nchapters) })
         toast(
@@ -552,7 +625,9 @@ object Model {
         val nc = if (c.done > 0) {
             c.copy(done = 0, rv = 0, last = 0, nx = 0, bk = false)
         } else {
-            c.copy(done = System.currentTimeMillis(), rv = 0, last = 0, nx = 0, bk = false)
+            val nowMs = System.currentTimeMillis()
+            val day = placeDay(loadByDay(excludeChapter = chId), S.cfg.rv.first().toLong())
+            c.copy(done = nowMs, rv = 0, last = 0, nx = addDays(nowMs, day), bk = false)
         }
         if (c.done > 0) toast("Unmarked") else toast("Chapter complete · first revision " + whenStr(dueOf(nc) ?: 0L))
         S = S.copy(subs = S.subs.toMutableList().also { sub ->
@@ -627,16 +702,19 @@ object Model {
     fun setPreset(f: Int, b: Int) {
         S = S.copy(cfg = S.cfg.copy(f = f, b = b))
         save()
+        syncService()
     }
 
     fun setSessionMin(f: Int) {
         S = S.copy(cfg = S.cfg.copy(f = f.coerceIn(0, 600)))
         save()
+        syncService()
     }
 
     fun setBreakMin(b: Int) {
         S = S.copy(cfg = S.cfg.copy(b = b.coerceIn(0, 120)))
         save()
+        syncService()
     }
 
     fun setDailyGoal(h: Double) {
@@ -687,6 +765,7 @@ object Model {
         if (a.isEmpty()) return false
         S = S.copy(cfg = S.cfg.copy(rv = a))
         save()
+        rebalanceFuture()
         toast("Schedule updated")
         return true
     }
