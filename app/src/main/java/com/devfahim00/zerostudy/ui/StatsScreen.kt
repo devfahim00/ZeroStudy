@@ -182,7 +182,7 @@ private fun ChartCard() {
     list.forEach { s ->
         buckets.find { s.t >= it.start && s.t < it.end }?.let { it.v += s.d }
     }
-    val mx = max(1L, buckets.maxOf { it.v })
+    val mx = max(1L, buckets.maxOfOrNull { it.v } ?: 0L)
     val title = when (range) {
         "d" -> "Today by hour"
         "w" -> "Last 7 days"
@@ -247,7 +247,7 @@ private fun SubjectProgressCard() {
     val most = nz.firstOrNull()?.id
     val least = if (nz.size > 1) nz.last().id else null
     val tt = rows.sumOf { it.v }
-    val top = max(1L, rows.maxOf { it.v })
+    val top = max(1L, rows.maxOfOrNull { it.v } ?: 0L)
 
     val lastStudied = remember(Model.S.ses) {
         val m = mutableMapOf<String, Long>()

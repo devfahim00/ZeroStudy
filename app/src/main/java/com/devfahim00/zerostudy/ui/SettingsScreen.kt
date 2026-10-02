@@ -165,7 +165,7 @@ private fun SettingsMenu(onOpen: (String) -> Unit) {
         MenuItem("exam", "Exam countdown", examSummary, Icons.Rounded.Event),
         MenuItem(
             "revision", "Revision schedule",
-            cfg.rv.joinToString(", ") + " days",
+            cfg.rv.joinToString(", ") + " days · max " + Model.revCap() + "/day",
             Icons.Rounded.Repeat
         )
     )
@@ -503,6 +503,27 @@ private fun RevisionScheduleCard() {
         }
         Mut(
             "Spaced repetition: each revision pushes the next one further out. If you cannot recall a chapter, tap Forgot and its cycle restarts.",
+            size = 13.sp,
+            modifier = Modifier.padding(top = 10.dp)
+        )
+    }
+    AppCard {
+        Labeled("Max revisions per day") {
+            CommitTextField(
+                initial = Model.revCap().toString(),
+                onCommit = { txt ->
+                    val v = txt.toIntOrNull()
+                    if (v != null) {
+                        Model.setRevCap(v)
+                        true
+                    } else false
+                },
+                placeholder = "5"
+            )
+        }
+        Mut(
+            "Chapters you mark as \"Earlier\" in Subjects are spread over the coming days using this limit. " +
+                "If more revisions are due than this, the rest wait in a queue on Home and show up as you finish the others.",
             size = 13.sp,
             modifier = Modifier.padding(top = 10.dp)
         )

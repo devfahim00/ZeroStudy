@@ -179,7 +179,7 @@ fun App() {
 @Composable
 private fun BottomNav(items: List<NavItem>, current: String, onTab: (String) -> Unit) {
     val p = pal()
-    val dueCount = Model.dueItems().count { it.due <= System.currentTimeMillis() }
+    val dueCount = Model.dueShownCount()
     Column(
         Modifier
             .fillMaxWidth()

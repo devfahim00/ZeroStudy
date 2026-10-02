@@ -181,6 +181,9 @@ private fun SubjectCard(s: Subject) {
                 ) {
                     Chip("Add chapter", panel == "chapter", color) { panel = if (panel == "chapter") "" else "chapter" }
                     Chip("Weekly target", panel == "target", color) { panel = if (panel == "target") "" else "target" }
+                    if (s.ch.any { it.done <= 0 }) {
+                        AskButton("Mark all studied") { Model.markAllStudiedEarlier(s.id) }
+                    }
                     AskButton("Remove subject") { Model.removeSubject(s.id) }
                 }
 
@@ -238,6 +241,7 @@ private fun ChapterRow(s: Subject, c: Chapter, studiedSec: Long) {
     val color = subjectColor(s.c)
     val done = c.done > 0
     var expanded by remember(c.id) { mutableStateOf(false) }
+    var asking by remember(c.id) { mutableStateOf(false) }
 
     Column(Modifier.fillMaxWidth()) {
         Row(
@@ -252,7 +256,9 @@ private fun ChapterRow(s: Subject, c: Chapter, studiedSec: Long) {
                     .size(26.dp)
                     .background(if (done) color else p.card, RoundedCornerShape(8.dp))
                     .border(1.dp, if (done) color else p.line, RoundedCornerShape(8.dp))
-                    .clickable { Model.toggleChapterDone(s.id, c.id) },
+                    .clickable {
+                        if (done) Model.toggleChapterDone(s.id, c.id) else asking = !asking
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 if (done) {
@@ -273,6 +279,28 @@ private fun ChapterRow(s: Subject, c: Chapter, studiedSec: Long) {
                 Mut(Model.chStatus(c), size = 12.sp, modifier = Modifier.padding(top = 1.dp))
             }
             Chevron(expanded, size = 20.dp)
+        }
+
+        // quick prompt after tapping the checkbox: did you just finish it, or studied it before?
+        AnimatedVisibility(visible = asking && !done) {
+            Column(Modifier.padding(start = 38.dp, bottom = 12.dp)) {
+                Mut("When did you study this?", size = 12.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                    Chip("Just now", false, color) {
+                        asking = false
+                        Model.toggleChapterDone(s.id, c.id)
+                    }
+                    Chip("Earlier", false, color) {
+                        asking = false
+                        Model.markStudiedEarlier(s.id, listOf(c.id))
+                    }
+                }
+                Mut(
+                    "Earlier chapters get their revisions spread over the coming days, so they don't all pile up on day one.",
+                    size = 11.sp,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
         }
 
         AnimatedVisibility(visible = expanded) {

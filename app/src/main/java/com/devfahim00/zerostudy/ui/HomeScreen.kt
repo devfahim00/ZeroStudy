@@ -1,6 +1,10 @@
 package com.devfahim00.zerostudy.ui
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -49,6 +53,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -126,23 +132,70 @@ private fun Pills() {
 
 /* ---------------- timer stage ---------------- */
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TimerStage() {
     val cfg = LocalConfiguration.current
-    val stage = minOf(cfg.screenWidthDp.dp * 0.76f, 360.dp)
+    val stage = minOf(cfg.screenWidthDp.dp * 0.78f, 340.dp)
 
-    Box(
+    Column(
         Modifier
             .fillMaxWidth()
-            .padding(top = 18.dp, bottom = 26.dp),
-        contentAlignment = Alignment.Center
+            .padding(top = 16.dp, bottom = 22.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        PhaseBadge()
+        Spacer(Modifier.height(26.dp))
         Box(Modifier.size(stage).aspectRatio(1f)) {
             ParticleCanvas()
             RingCanvas()
             TimerCenter()
         }
+    }
+}
+
+/** Small status capsule above the ring: FOCUS / BREAK / PAUSED / READY. */
+@Composable
+private fun PhaseBadge() {
+    val p = pal()
+    val focus = Model.S.ph == "f"
+    val run = Model.S.tm.run
+    val accent = if (focus) p.a else p.ok
+    val label = when {
+        !focus -> if (run) "BREAK" else "BREAK PAUSED"
+        run -> "FOCUS"
+        Model.el() > 0 -> "PAUSED"
+        else -> "READY"
+    }
+    val pulse = rememberInfiniteTransition(label = "pulse").animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
+        label = "dot"
+    )
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .background(lerp(p.card, accent, 0.10f), RoundedCornerShape(99.dp))
+            .border(1.dp, lerp(p.line, accent, 0.45f), RoundedCornerShape(99.dp))
+            .padding(horizontal = 14.dp, vertical = 6.dp)
+    ) {
+        Box(
+            Modifier
+                .size(8.dp)
+                .graphicsLayer { alpha = if (run) pulse.value else 1f }
+                .background(accent, CircleShape)
+        )
+        Text(
+            label,
+            style = TextStyle(
+                fontFamily = Sora,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 11.sp,
+                letterSpacing = 1.6.sp
+            ),
+            color = accent
+        )
     }
 }
 
@@ -219,25 +272,69 @@ private fun RingCanvas() {
         (e % 3_600_000L).toFloat() / 3_600_000f
     }
     Canvas(Modifier.fillMaxSize()) {
-        val stroke = size.width * 0.026f
-        val trackStroke = size.width * 0.022f
-        val r = size.minDimension / 2f * (46f / 50f)
+        val half = size.minDimension / 2f
         val center = Offset(size.width / 2f, size.height / 2f)
-        drawCircle(color = p.trk, radius = r, center = center, style = Stroke(trackStroke))
+        val stroke = size.width * 0.03f
+        val r = half * 0.82f
+        val accent = if (focus) p.a else p.ok
+
+        // minute-style ticks around the ring; passed ones light up with progress
+        val passed = (fill * 60f).toInt()
+        for (i in 0 until 60) {
+            val ang = Math.toRadians(i * 6.0 - 90.0).toFloat()
+            val major = i % 5 == 0
+            val r0 = half * (if (major) 0.9f else 0.93f)
+            val r1 = half * 0.97f
+            val lit = fill > 0f && i < passed
+            val c = when {
+                lit -> accent.copy(alpha = if (major) 0.95f else 0.6f)
+                else -> p.line.copy(alpha = if (major) 1f else 0.7f)
+            }
+            drawLine(
+                color = c,
+                start = Offset(center.x + cos(ang) * r0, center.y + sin(ang) * r0),
+                end = Offset(center.x + cos(ang) * r1, center.y + sin(ang) * r1),
+                strokeWidth = if (major) 2.2.dp.toPx() else 1.4.dp.toPx(),
+                cap = StrokeCap.Round
+            )
+        }
+
+        drawCircle(color = p.trk, radius = r, center = center, style = Stroke(stroke))
+
         if (fill > 0f) {
             val brush = if (!focus) SolidColor(p.ok) else Brush.sweepGradient(
                 colors = listOf(p.a, p.b, p.a),
                 center = center
             )
+            val topLeft = Offset(center.x - r, center.y - r)
+            val arcSize = Size(r * 2f, r * 2f)
             rotate(-90f, pivot = center) {
+                // soft glow under the progress arc
                 drawArc(
                     brush = brush,
                     startAngle = 0f,
                     sweepAngle = 360f * fill,
                     useCenter = false,
+                    topLeft = topLeft,
+                    size = arcSize,
+                    alpha = 0.16f,
+                    style = Stroke(stroke * 2.6f, cap = StrokeCap.Round)
+                )
+                drawArc(
+                    brush = brush,
+                    startAngle = 0f,
+                    sweepAngle = 360f * fill,
+                    useCenter = false,
+                    topLeft = topLeft,
+                    size = arcSize,
                     style = Stroke(stroke, cap = StrokeCap.Round)
                 )
             }
+            // knob at the head of the arc
+            val ang = Math.toRadians(-90.0 + 360.0 * fill).toFloat()
+            val knob = Offset(center.x + cos(ang) * r, center.y + sin(ang) * r)
+            drawCircle(color = p.bg, radius = stroke * 0.95f, center = knob)
+            drawCircle(color = accent, radius = stroke * 0.55f, center = knob)
         }
     }
 }
@@ -253,10 +350,18 @@ private fun TimerCenter() {
     val e = Model.el()
     val focus = Model.S.ph == "f"
     val run = Model.S.tm.run
+    val accent = if (focus) p.a else p.ok
     val sub = if (focus) {
-        (if (run) "Focus" else if (e > 0) "Paused" else "Ready") + (if (t > 0) " · ${Model.S.cfg.f} min" else "")
+        (if (run) "Focus" else if (e > 0) "Paused" else "Ready") + (if (t > 0) " · ${Model.S.cfg.f} min" else " · stopwatch")
     } else {
         (if (run) "Break" else "Break paused") + " · ${Model.S.cfg.b} min"
+    }
+    val names = Model.S.sel.mapNotNull { id -> Model.S.subs.find { it.id == id }?.n }
+    val subject = when {
+        !focus -> "Rest your eyes"
+        names.isEmpty() -> "All subjects"
+        names.size <= 2 -> names.joinToString(" · ")
+        else -> names.first() + " +" + (names.size - 1)
     }
     Column(
         Modifier.fillMaxSize(),
@@ -273,10 +378,22 @@ private fun TimerCenter() {
             ),
             color = p.ink
         )
+        Spacer(Modifier.height(2.dp))
         Text(
             text = sub,
             style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 13.sp),
             color = p.mut
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = subject,
+            style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 12.sp),
+            color = accent,
+            maxLines = 1,
+            modifier = Modifier
+                .widthIn(max = 170.dp)
+                .background(lerp(p.card, accent, 0.10f), RoundedCornerShape(99.dp))
+                .padding(horizontal = 12.dp, vertical = 4.dp)
         )
     }
 }
@@ -285,59 +402,71 @@ private fun TimerCenter() {
 
 @Composable
 private fun Controls() {
+    val p = pal()
     val focus = Model.S.ph == "f"
+    val run = Model.S.tm.run
+    val accent = if (focus) p.a else p.ok
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally)
+        horizontalArrangement = Arrangement.spacedBy(26.dp, Alignment.CenterHorizontally)
     ) {
-        // stop / save / skip-break
+        SideAction(
+            icon = if (focus) Icons.Rounded.Check else Icons.Rounded.SkipNext,
+            label = if (focus) "Save" else "Skip",
+            desc = if (focus) "Save session" else "Skip break"
+        ) { Model.stop() }
+
+        // main start / pause button with a soft halo
+        Box(contentAlignment = Alignment.Center) {
+            Box(
+                Modifier
+                    .size(96.dp)
+                    .background(accent.copy(alpha = if (run) 0.16f else 0.08f), CircleShape)
+            )
+            Box(
+                Modifier
+                    .size(76.dp)
+                    .background(
+                        Brush.linearGradient(if (focus) listOf(p.a, p.b) else listOf(p.ok, p.a)),
+                        CircleShape
+                    )
+                    .clickable { Model.toggle() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    if (run) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                    contentDescription = if (run) "Pause" else if (Model.el() > 0) "Resume" else "Start",
+                    tint = Color(0xFF05060A),
+                    modifier = Modifier.size(34.dp)
+                )
+            }
+        }
+
+        SideAction(
+            icon = Icons.Rounded.Fullscreen,
+            label = "Full screen",
+            desc = "Full screen"
+        ) { Model.fullscreen = true }
+    }
+}
+
+@Composable
+private fun SideAction(icon: ImageVector, label: String, desc: String, onClick: () -> Unit) {
+    val p = pal()
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier
                 .size(54.dp)
-                .background(pal().card, CircleShape)
-                .border(1.dp, pal().line, CircleShape)
-                .clickable { Model.stop() },
+                .background(p.card, CircleShape)
+                .border(1.dp, p.line, CircleShape)
+                .clickable { onClick() },
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                if (focus) Icons.Rounded.Check else Icons.Rounded.SkipNext,
-                contentDescription = if (focus) "Save session" else "Skip break",
-                tint = pal().ink,
-                modifier = Modifier.size(22.dp)
-            )
+            Icon(icon, contentDescription = desc, tint = p.ink, modifier = Modifier.size(22.dp))
         }
-        // start / pause
-        Box(
-            Modifier
-                .size(72.dp)
-                .background(pal().ink, CircleShape)
-                .clickable { Model.toggle() },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                if (Model.S.tm.run) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                contentDescription = if (Model.S.tm.run) "Pause" else if (Model.el() > 0) "Resume" else "Start",
-                tint = pal().bg,
-                modifier = Modifier.size(28.dp)
-            )
-        }
-        // fullscreen
-        Box(
-            Modifier
-                .size(54.dp)
-                .background(pal().card, CircleShape)
-                .border(1.dp, pal().line, CircleShape)
-                .clickable { Model.fullscreen = true },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                Icons.Rounded.Fullscreen,
-                contentDescription = "Full screen",
-                tint = pal().ink,
-                modifier = Modifier.size(22.dp)
-            )
-        }
+        Spacer(Modifier.height(6.dp))
+        Mut(label, size = 11.sp)
     }
 }
 
@@ -409,7 +538,9 @@ fun RevisionCard() {
     val p = pal()
     val all = Model.dueItems()
     val now = System.currentTimeMillis()
-    val due = all.filter { it.due <= now }
+    val dueAll = all.filter { it.due <= now }
+    val due = dueAll.take(Model.revCap())
+    val queued = dueAll.size - due.size
     val next = all.firstOrNull { it.due > now }
     AppCard {
         H2(if (due.isNotEmpty()) "Revise today · ${due.size}" else "Revision")
@@ -439,6 +570,14 @@ fun RevisionCard() {
                             AppButton("Forgot", { Model.revise(x.sub.id, x.ch.id, false) }, small = true)
                         }
                     }
+                }
+                if (queued > 0) {
+                    ItemDivider()
+                    Mut(
+                        "+$queued more waiting in the queue. They appear as you finish these.",
+                        size = 12.sp,
+                        modifier = Modifier.padding(top = 10.dp)
+                    )
                 }
             }
         } else {

@@ -19,7 +19,9 @@ data class Chapter(
     val rv: Int = 0,
     val last: Long = 0,
     val dif: String = "",
-    val note: String = ""
+    val note: String = "",
+    val nx: Long = 0,        // earliest allowed next revision (used to spread backlog chapters)
+    val bk: Boolean = false  // marked as "studied earlier" when set up
 )
 
 data class Subject(
@@ -39,7 +41,12 @@ data class Session(
 
 data class Goal(val d: Double = 2.0, val w: Double = 10.0)
 
-data class Cfg(val f: Int = 25, val b: Int = 5, val rv: List<Int> = listOf(1, 3, 7, 15, 30))
+data class Cfg(
+    val f: Int = 25,
+    val b: Int = 5,
+    val rv: List<Int> = listOf(1, 3, 7, 15, 30),
+    val cap: Int = 5 // max revisions per day; <= 0 (old saves) falls back to 5
+)
 
 data class TimerState(val run: Boolean = false, val start: Long = 0, val acc: Long = 0)
 
@@ -290,6 +297,7 @@ object Model {
         if (c.done <= 0 || c.rv >= S.cfg.rv.size) return null
         var d = addDays(c.done, S.cfg.rv[c.rv].toLong())
         if (c.last > 0) d = maxOf(d, addDays(c.last, 1))
+        if (c.nx > 0) d = maxOf(d, c.nx)
         return d
     }
 
@@ -306,7 +314,7 @@ object Model {
     fun chStatus(c: Chapter): String {
         if (c.done <= 0) return "Not completed"
         val d = dueOf(c)
-        return "Completed " + fmtDate(c.done) + " · " + when {
+        return (if (c.bk) "Studied earlier" else "Completed " + fmtDate(c.done)) + " · " + when {
             d == null -> "Mastered"
             d <= System.currentTimeMillis() -> "Revision due"
             else -> "Next revision " + fmtDate(d)
@@ -322,6 +330,77 @@ object Model {
         return all
     }
 
+    /** Max revisions we ask for in one day. */
+    fun revCap(): Int = if (S.cfg.cap <= 0) 5 else S.cfg.cap
+
+    /** Everything due now or earlier, most overdue first. */
+    fun dueNow(): List<DueItem> {
+        val n = System.currentTimeMillis()
+        return dueItems().filter { it.due <= n }
+    }
+
+    /** What the badge/list shows: the daily cap, the rest wait in the queue. */
+    fun dueShownCount(): Int = minOf(dueNow().size, revCap())
+
+    /** How many revisions are already planned for each day from today (overdue counts as today). */
+    private fun loadByDay(): MutableMap<Long, Int> {
+        val m = mutableMapOf<Long, Int>()
+        val n = System.currentTimeMillis()
+        dueItems().forEach {
+            val k = maxOf(0L, dayDiff(it.due, n))
+            m[k] = (m[k] ?: 0) + 1
+        }
+        return m
+    }
+
+    /** Earliest day (>= the first interval) that still has room under the daily cap. */
+    private fun takeSlot(load: MutableMap<Long, Int>): Long {
+        val cap = revCap()
+        var day = S.cfg.rv.first().toLong()
+        while ((load[day] ?: 0) >= cap) day++
+        load[day] = (load[day] ?: 0) + 1
+        return day
+    }
+
+    /**
+     * Marks chapters as already studied before using the app. They count as completed
+     * but their first revisions are spread across the coming days (at most [revCap]
+     * per day) instead of all landing on day one.
+     */
+    fun markStudiedEarlier(subId: String, chIds: List<String>) {
+        val si = S.subs.indexOfFirst { it.id == subId }
+        if (si < 0) return
+        val load = loadByDay()
+        val nowMs = System.currentTimeMillis()
+        var count = 0
+        var lastDay = 0L
+        val chapters = S.subs[si].ch.map { c ->
+            if (c.id in chIds && c.done <= 0) {
+                val day = takeSlot(load)
+                count++
+                lastDay = maxOf(lastDay, day)
+                c.copy(done = nowMs, rv = 0, last = 0, nx = addDays(nowMs, day), bk = true)
+            } else c
+        }
+        if (count == 0) return
+        S = S.copy(subs = S.subs.toMutableList().also { it[si] = it[si].copy(ch = chapters) })
+        save()
+        toast(
+            if (count == 1) "Marked as studied · first revision " + whenStr(addDays(nowMs, lastDay))
+            else "$count chapters marked · revisions spread over $lastDay days"
+        )
+    }
+
+    fun markAllStudiedEarlier(subId: String) {
+        val sub = S.subs.find { it.id == subId } ?: return
+        markStudiedEarlier(subId, sub.ch.filter { it.done <= 0 }.map { it.id })
+    }
+
+    fun setRevCap(n: Int) {
+        S = S.copy(cfg = S.cfg.copy(cap = n.coerceIn(1, 50)))
+        save()
+    }
+
     fun revise(subId: String, chId: String, ok: Boolean) {
         val si = S.subs.indexOfFirst { it.id == subId }
         if (si < 0) return
@@ -329,7 +408,7 @@ object Model {
         if (ci < 0) return
         val c = S.subs[si].ch[ci]
         val nowMs = System.currentTimeMillis()
-        val nc = if (ok) c.copy(rv = c.rv + 1, last = nowMs) else c.copy(rv = 0, done = nowMs, last = 0)
+        val nc = if (ok) c.copy(rv = c.rv + 1, last = nowMs, nx = 0) else c.copy(rv = 0, done = nowMs, last = 0, nx = 0, bk = false)
         val nchapters = S.subs[si].ch.toMutableList().also { it[ci] = nc }
         S = S.copy(subs = S.subs.toMutableList().also { it[si] = S.subs[si].copy(ch = nchapters) })
         toast(
@@ -404,9 +483,9 @@ object Model {
         if (ci < 0) return
         val c = S.subs[si].ch[ci]
         val nc = if (c.done > 0) {
-            c.copy(done = 0, rv = 0, last = 0)
+            c.copy(done = 0, rv = 0, last = 0, nx = 0, bk = false)
         } else {
-            c.copy(done = System.currentTimeMillis(), rv = 0, last = 0)
+            c.copy(done = System.currentTimeMillis(), rv = 0, last = 0, nx = 0, bk = false)
         }
         if (c.done > 0) toast("Unmarked") else toast("Chapter complete · first revision " + whenStr(dueOf(nc) ?: 0L))
         S = S.copy(subs = S.subs.toMutableList().also { sub ->
