@@ -46,6 +46,13 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.composed
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.focus.FocusState
@@ -279,6 +286,7 @@ fun CommitTextField(
         onValueChange = { if (it.length <= maxLen) text = it },
         modifier = modifier
             .fillMaxWidth()
+            .bringIntoViewOnFocus()
             .onFocusChanged { f: FocusState ->
                 if (focused && !f.isFocused) {
                     if (!onCommit(text)) text = initial
@@ -359,4 +367,24 @@ fun Labeled(label: String, modifier: Modifier = Modifier, content: @Composable (
 @Composable
 fun Spacer4() {
     androidx.compose.foundation.layout.Spacer(Modifier.height(4.dp))
+}
+
+/**
+ * Scrolls the focused field into view once the keyboard has finished animating,
+ * so it never ends up hidden behind the IME inside a scrolling screen.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+fun Modifier.bringIntoViewOnFocus(): Modifier = composed {
+    val requester = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
+    this
+        .bringIntoViewRequester(requester)
+        .onFocusChanged { f ->
+            if (f.isFocused) {
+                scope.launch {
+                    delay(350)
+                    requester.bringIntoView()
+                }
+            }
+        }
 }

@@ -12,6 +12,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -82,11 +89,14 @@ class MainActivity : ComponentActivity() {
 
 private data class NavItem(val id: String, val label: String, val icon: ImageVector)
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun App() {
     val p = pal()
     var tab by rememberSaveable { mutableStateOf("home") }
     val snackbar = remember { SnackbarHostState() }
+    // hide the bottom nav while the keyboard is open so fields get the full space
+    val imeVisible = WindowInsets.isImeVisible
 
     // 250 ms ticker, like the web app's setInterval(tick, 250)
     LaunchedEffect(Unit) {
@@ -142,6 +152,8 @@ fun App() {
     Box(Modifier.fillMaxSize().background(p.bg)) {
         Scaffold(
             containerColor = p.bg,
+            // bottom inset is handled by the nav bar itself / imePadding below
+            contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
             snackbarHost = {
                 SnackbarHost(snackbar) { data ->
                     Snackbar(
@@ -152,13 +164,14 @@ fun App() {
                 }
             },
             bottomBar = {
-                BottomNav(items, tab) { tab = it }
+                if (!imeVisible) BottomNav(items, tab) { tab = it }
             }
         ) { pad ->
             Box(
                 Modifier
                     .fillMaxSize()
                     .padding(pad)
+                    .imePadding()
             ) {
                 key(tab) {
                     when (tab) {

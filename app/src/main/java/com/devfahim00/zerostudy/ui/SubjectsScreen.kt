@@ -87,7 +87,7 @@ private fun AddSubjectCard() {
                 textStyle = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 15.sp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { tryAdd() }),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).bringIntoViewOnFocus()
             )
             AppButton("Add", { tryAdd() }, primary = true)
         }
@@ -371,6 +371,7 @@ private fun NoteField(s: Subject, c: Chapter) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 10.dp)
+            .bringIntoViewOnFocus()
             .onFocusChanged { f ->
                 if (focused && !f.isFocused && text.trim() != c.note) Model.setNote(s.id, c.id, text)
                 focused = f.isFocused
@@ -395,7 +396,7 @@ private fun AddChapterRow(s: Subject) {
             textStyle = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 15.sp),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { tryAdd() }),
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f).bringIntoViewOnFocus()
         )
         AppButton("Add", { tryAdd() }, primary = true)
     }
