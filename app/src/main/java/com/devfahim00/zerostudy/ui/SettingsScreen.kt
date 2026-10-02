@@ -202,7 +202,7 @@ private fun SettingsMenu(onOpen: (String) -> Unit) {
         ),
         if (islandOn) MenuItem(
             "island", "Hyper Island",
-            when (Model.S.isl) { "icon" -> "Icon only"; "off" -> "Off"; else -> "Compact · icon + time" },
+            if (Model.S.isl == "off") "Off" else "On · icon left, time right",
             Icons.Rounded.Timer
         ) else null,
         MenuItem(
@@ -349,17 +349,16 @@ private fun IslandPage() {
     val ctx = LocalContext.current
     var allowed by remember { mutableStateOf<Boolean?>(null) }
     androidx.compose.runtime.LaunchedEffect(Unit) { allowed = HyperIsland.hasPermission(ctx) }
-    val styles = listOf("compact", "icon", "off")
+    val styles = listOf("compact", "off")
     val sel = styles.indexOf(Model.S.isl).takeIf { it >= 0 } ?: 0
 
     AppCard {
         H2("Style")
-        Seg(listOf("Compact", "Icon only", "Off"), sel) { Model.setIslandStyle(styles[it]) }
+        Seg(listOf("Compact", "Off"), sel) { Model.setIslandStyle(styles[it]) }
         Mut(
             when (Model.S.isl) {
-                "icon" -> "Only the app icon sits in the island, so it takes the least room. Open the island to see the time."
                 "off" -> "No island. You still get the normal timer notification."
-                else -> "A small pill with the icon and only the time, so your status bar icons keep their space."
+                else -> "A small pill: the app icon on the left and the time on the right, split evenly around the camera. Open the island for full details."
             },
             size = 12.sp,
             modifier = Modifier.padding(top = 12.dp)

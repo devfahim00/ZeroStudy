@@ -191,7 +191,7 @@ class TimerService : Service() {
                 else -> "left"
             }
             val label = (if (focus) "Focus" else "Break") + (if (focus && subject.isNotEmpty()) " · $subject" else "")
-            HyperIsland.attach(n, label, time, status, Model.S.isl)
+            HyperIsland.attach(n, label, time, status)
         }
         return n
     }

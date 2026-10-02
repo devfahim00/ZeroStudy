@@ -72,7 +72,7 @@ data class AppState(
     val theme: String = "dark",
     val sc: String = "",
     val snd: String = "sonar", // id of the chosen alert sound (see AlertSounds)
-    val isl: String = "compact" // Hyper Island style: compact | icon | off
+    val isl: String = "compact" // Hyper Island style: compact | off
 )
 
 /* ---------------- model ---------------- */
@@ -160,7 +160,7 @@ object Model {
             theme = if (s.theme.isNullOrBlank()) "dark" else s.theme,
             sc = s.sc ?: "",
             snd = AlertSounds.byId(s.snd).id,
-            isl = if (s.isl in listOf("compact", "icon", "off")) s.isl else "compact"
+            isl = if (s.isl == "off") "off" else "compact" // the old "icon" style was removed
         )
     }
 
