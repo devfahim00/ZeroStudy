@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0] - 2026-10-02
+
+### New
+- **Timer keeps running in the background.** While a focus session or break is running, a notification shows a live countdown (or the stopwatch) with a **Pause / Resume** button. Tap it to jump back into the app.
+- **Alert plays even when the app is closed or the phone is locked.** The end-of-session alarm is scheduled as an exact alarm, so your chosen sound and vibration fire on time, and a "Session done" notification appears.
+- **Revisions tab (new).** One screen with your whole revision plan, grouped by **date → subject → chapter**. Today's card has Done / Forgot buttons and shows what is waiting in the queue; you can filter by subject and see how full each day is (for example 3/5).
+
+### Fixed
+- **Daily revision limit is now respected everywhere.** Completing a chapter, marking a revision Done or tapping Forgot used to ignore your "max revisions per day" and could pile too many chapters on one day. They now go to the next day that has room.
+- Days that were already overfilled are repaired automatically, and changing the daily limit or the revision schedule re-spreads upcoming days.
+
+### Notes
+- Android 13 and newer asks for notification permission the first time you open the app. Allow it to see the timer in the notification shade.
+
 ## [1.0.1] - 2026-10-02
 
 ### Fixed
