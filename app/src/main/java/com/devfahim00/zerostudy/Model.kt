@@ -70,7 +70,8 @@ data class AppState(
     val exam: Exam = Exam(), // legacy single exam, migrated into [exams]
     val exams: List<Exam> = emptyList(),
     val theme: String = "dark",
-    val sc: String = ""
+    val sc: String = "",
+    val snd: String = "beep" // id of the chosen alert sound (see AlertSounds)
 )
 
 /* ---------------- model ---------------- */
@@ -133,7 +134,8 @@ object Model {
             exam = Exam(),
             exams = migrated,
             theme = if (s.theme.isNullOrBlank()) "dark" else s.theme,
-            sc = s.sc ?: ""
+            sc = s.sc ?: "",
+            snd = AlertSounds.byId(s.snd).id
         )
     }
 
@@ -150,18 +152,24 @@ object Model {
     }
 
     /**
-     * Loud completion alert: plays on the alarm stream (so it is not tied to the
-     * media volume and still rings in silent mode) at full player volume, plus a
-     * strong vibration pattern.
+     * Loud completion alert: plays the sound chosen in Settings on the alarm stream
+     * (so it is not tied to the media volume and still rings in silent mode) at full
+     * player volume, plus a strong vibration pattern.
      */
     fun beep() {
+        playSound(S.snd)
+        vibrate()
+    }
+
+    /** Plays one alert sound (used by the alert and by the preview in Settings). */
+    fun playSound(id: String) {
         try {
             player?.release()
             val attrs = AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_ALARM)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                 .build()
-            player = MediaPlayer.create(appCtx, R.raw.beep, attrs, AudioManager.AUDIO_SESSION_ID_GENERATE)
+            player = MediaPlayer.create(appCtx, AlertSounds.byId(id).res, attrs, AudioManager.AUDIO_SESSION_ID_GENERATE)
                 ?.also { p ->
                     p.setVolume(1f, 1f)
                     p.setOnCompletionListener { it.release() }
@@ -169,7 +177,12 @@ object Model {
                 }
         } catch (_: Exception) {
         }
-        vibrate()
+    }
+
+    fun setSound(id: String) {
+        S = S.copy(snd = id)
+        save()
+        playSound(id)
     }
 
     private fun vibrate() {

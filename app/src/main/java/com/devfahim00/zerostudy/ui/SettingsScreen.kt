@@ -21,7 +21,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.ChevronRight
@@ -52,13 +56,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devfahim00.zerostudy.Exam
+import com.devfahim00.zerostudy.AlertSounds
 import com.devfahim00.zerostudy.Model
+import com.devfahim00.zerostudy.Updater
 import com.devfahim00.zerostudy.fmtNum
 import com.devfahim00.zerostudy.hm
 import java.time.Instant
@@ -99,9 +106,14 @@ fun SettingsScreen() {
                     PageHeader("Revision schedule") { page = "" }
                     RevisionScheduleCard()
                 }
+                "sound" -> {
+                    PageHeader("Alert sound") { page = "" }
+                    SoundPage()
+                }
                 else -> {
                     SettingsMenu { page = it }
                     ThemeCard()
+                    CommunityCard()
                 }
             }
         }
@@ -168,6 +180,11 @@ private fun SettingsMenu(onOpen: (String) -> Unit) {
             "goals", "Goals",
             "${fmtNum(goal.d)}h daily · ${fmtNum(goal.w)}h weekly",
             Icons.Rounded.TrackChanges
+        ),
+        MenuItem(
+            "sound", "Alert sound",
+            AlertSounds.byId(Model.S.snd).name,
+            Icons.Rounded.NotificationsActive
         ),
         MenuItem("exam", "Exam countdown", examSummary, Icons.Rounded.Event),
         MenuItem(
@@ -242,6 +259,152 @@ private fun ThemeCard() {
                     uncheckedBorderColor = p.line
                 )
             )
+        }
+    }
+}
+
+/* ---------------- alert sound ---------------- */
+
+@Composable
+private fun SoundPage() {
+    val p = pal()
+    val current = Model.S.snd
+    AppCard {
+        H2("Choose your alert")
+        Mut(
+            "Plays when a focus session or break ends. Every sound is short and loud, and rings even in silent mode. Tap one to hear it.",
+            size = 12.sp,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+        AlertSounds.all.forEachIndexed { i, snd ->
+            if (i > 0) ItemDivider()
+            val on = snd.id == current
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { Model.setSound(snd.id) }
+                    .padding(vertical = 12.dp)
+            ) {
+                Box(
+                    Modifier
+                        .size(22.dp)
+                        .border(2.dp, if (on) p.a else p.line, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (on) Box(Modifier.size(10.dp).background(p.a, CircleShape))
+                }
+                Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
+                    Text(
+                        snd.name,
+                        style = TextStyle(fontFamily = Sora, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal, fontSize = 15.sp),
+                        color = if (on) p.a else p.ink
+                    )
+                    Mut(snd.hint, size = 12.sp, modifier = Modifier.padding(top = 2.dp))
+                }
+                Box(
+                    Modifier
+                        .size(38.dp)
+                        .background(p.inp, CircleShape)
+                        .border(1.dp, p.line, CircleShape)
+                        .clickable { Model.playSound(snd.id) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Rounded.PlayArrow, contentDescription = "Preview ${snd.name}", tint = p.ink, modifier = Modifier.size(20.dp))
+                }
+            }
+        }
+    }
+}
+
+/* ---------------- community + updates ---------------- */
+
+private const val TELEGRAM_URL = "https://t.me/projectredfox"
+
+@Composable
+private fun CommunityCard() {
+    val p = pal()
+    val ctx = LocalContext.current
+    val st = Updater.state
+    val version = remember { Updater.currentVersion(ctx) }
+
+    val updateSummary = when (st) {
+        is Updater.State.Checking -> "Checking GitHub…"
+        is Updater.State.UpToDate -> "You are on the latest version ($version)"
+        is Updater.State.Available -> "Version ${st.version} is available"
+        is Updater.State.Failed -> st.reason + " · tap to retry"
+        else -> "Version $version"
+    }
+
+    AppCard {
+        // join telegram
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { Updater.openUrl(ctx, TELEGRAM_URL) }
+                .padding(vertical = 6.dp)
+        ) {
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .background(p.inp, RoundedCornerShape(12.dp))
+                    .border(1.dp, p.line, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = null, tint = p.a, modifier = Modifier.size(20.dp))
+            }
+            Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
+                Text(
+                    "Join Telegram",
+                    style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 15.sp),
+                    color = p.ink
+                )
+                Mut("Updates, help and feedback", size = 12.sp, modifier = Modifier.padding(top = 2.dp))
+            }
+            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = p.mut, modifier = Modifier.size(22.dp))
+        }
+        ItemDivider()
+        // check for update
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = st !is Updater.State.Checking) { Updater.check(ctx) }
+                .padding(vertical = 6.dp)
+        ) {
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .background(p.inp, RoundedCornerShape(12.dp))
+                    .border(1.dp, p.line, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Rounded.SystemUpdate, contentDescription = null, tint = p.a, modifier = Modifier.size(20.dp))
+            }
+            Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
+                Text(
+                    "Check for update",
+                    style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 15.sp),
+                    color = p.ink
+                )
+                Mut(updateSummary, size = 12.sp, modifier = Modifier.padding(top = 2.dp))
+            }
+            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = p.mut, modifier = Modifier.size(22.dp))
+        }
+        if (st is Updater.State.Available) {
+            Spacer(Modifier.height(10.dp))
+            if (st.notes.isNotBlank()) {
+                Mut(
+                    st.notes.lines().filter { it.isNotBlank() }.take(8).joinToString("\n"),
+                    size = 12.sp,
+                    modifier = Modifier.padding(bottom = 10.dp)
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                AppButton("Download", onClick = { Updater.open(ctx, st.apkUrl ?: st.page) }, primary = true)
+                AppButton("Release page", onClick = { Updater.open(ctx, st.page) })
+            }
         }
     }
 }

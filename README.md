@@ -12,10 +12,16 @@ Native port of the *Focus – Study Tracker* web app — same UI, same features.
 - **Stats** — daily / weekly / monthly bar charts, subject comparison, today's sessions, a 22-week study heatmap, best day/week records and streaks
 - **Goals** — daily & weekly study goals with live progress
 - **Exam countdown** — name a date and get a countdown on the home screen
+- **12 loud alert sounds** — short 1-2 sec alerts, pick your favourite in Settings
+- **Update checker** — checks this repo's GitHub releases from Settings
 - **Dark & light themes**
 - Everything is stored locally on your device — no account, no network.
 
 ## Download the APK
+
+The signed release APK is on the [**Releases page**](https://github.com/devfahim00/ZeroStudy/releases/latest) — see the [changelog](CHANGELOG.md).
+
+### Debug builds
 
 Every push to this repo is built by GitHub Actions. Grab the latest debug APK from the
 [**debug-latest release**](https://github.com/devfahim00/ZeroStudy/releases/tag/debug-latest),
