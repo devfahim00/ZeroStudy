@@ -1,7 +1,13 @@
 package com.devfahim00.zerostudy
 
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.MediaPlayer
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -143,12 +149,40 @@ object Model {
         toasts.tryEmit(msg)
     }
 
+    /**
+     * Loud completion alert: plays on the alarm stream (so it is not tied to the
+     * media volume and still rings in silent mode) at full player volume, plus a
+     * strong vibration pattern.
+     */
     fun beep() {
         try {
             player?.release()
-            player = MediaPlayer.create(appCtx, R.raw.beep)?.also { p ->
-                p.setOnCompletionListener { it.release() }
-                p.start()
+            val attrs = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+            player = MediaPlayer.create(appCtx, R.raw.beep, attrs, AudioManager.AUDIO_SESSION_ID_GENERATE)
+                ?.also { p ->
+                    p.setVolume(1f, 1f)
+                    p.setOnCompletionListener { it.release() }
+                    p.start()
+                }
+        } catch (_: Exception) {
+        }
+        vibrate()
+    }
+
+    private fun vibrate() {
+        try {
+            val pattern = longArrayOf(0, 500, 200, 500, 200, 700)
+            val effect = VibrationEffect.createWaveform(pattern, -1)
+            if (Build.VERSION.SDK_INT >= 31) {
+                val vm = appCtx.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                vm.defaultVibrator.vibrate(effect)
+            } else {
+                @Suppress("DEPRECATION")
+                val v = appCtx.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                v.vibrate(effect)
             }
         } catch (_: Exception) {
         }

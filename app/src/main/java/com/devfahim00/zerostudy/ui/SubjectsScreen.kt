@@ -240,6 +240,7 @@ private fun ChapterRow(s: Subject, c: Chapter, studiedSec: Long) {
     val p = pal()
     val color = subjectColor(s.c)
     val done = c.done > 0
+    val selected = Model.effSc() == c.id
     var expanded by remember(c.id) { mutableStateOf(false) }
     var asking by remember(c.id) { mutableStateOf(false) }
 
@@ -271,11 +272,28 @@ private fun ChapterRow(s: Subject, c: Chapter, studiedSec: Long) {
                 }
             }
             Column(Modifier.weight(1f).padding(start = 12.dp, end = 8.dp)) {
-                Text(
-                    c.n,
-                    style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 15.sp),
-                    color = if (done) p.mut else p.ink
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        c.n,
+                        style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 15.sp),
+                        color = if (done) p.mut else p.ink,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    // the chapter currently picked for the timer on Home
+                    if (selected) {
+                        Text(
+                            "Selected",
+                            style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 11.sp),
+                            color = color,
+                            maxLines = 1,
+                            modifier = Modifier
+                                .padding(start = 8.dp)
+                                .background(lerp(p.card, color, 0.18f), RoundedCornerShape(99.dp))
+                                .border(1.dp, lerp(p.line, color, 0.5f), RoundedCornerShape(99.dp))
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
+                }
                 Mut(Model.chStatus(c), size = 12.sp, modifier = Modifier.padding(top = 1.dp))
             }
             Chevron(expanded, size = 20.dp)
