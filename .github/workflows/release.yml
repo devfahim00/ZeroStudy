@@ -49,7 +49,8 @@ jobs:
       - name: Verify signature
         run: |
           APK=$(ls app/build/outputs/apk/release/*.apk | head -n1)
-          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs "$APK"
+          APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n1)
+          "$APKSIGNER" verify --print-certs "$APK"
           cp "$APK" "ZeroStudy-${TAG}.apk"
 
       - name: Extract release notes
