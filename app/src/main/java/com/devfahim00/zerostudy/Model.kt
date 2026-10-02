@@ -162,6 +162,48 @@ object Model {
         )
     }
 
+    /* ---------------- backup: export / import ---------------- */
+
+    private const val BACKUP_VERSION = 1
+
+    /** The whole app state as a JSON backup string. */
+    fun exportJson(): String {
+        val o = com.google.gson.JsonObject()
+        o.addProperty("app", "ZeroStudy")
+        o.addProperty("backup", BACKUP_VERSION)
+        o.addProperty("exported", System.currentTimeMillis())
+        o.add("state", gson.toJsonTree(S))
+        return com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(o)
+    }
+
+    data class BackupInfo(val state: AppState, val subjects: Int, val chapters: Int, val sessions: Int)
+
+    /** Parses and validates a backup without applying it. Returns null when it is not a ZeroStudy backup. */
+    fun parseBackup(text: String): BackupInfo? {
+        return try {
+            val root = com.google.gson.JsonParser.parseString(text).asJsonObject
+            val stateJson = when {
+                root.has("state") && root.get("state").isJsonObject -> root.getAsJsonObject("state")
+                root.has("subs") -> root // a raw state dump
+                else -> return null
+            }
+            if (!stateJson.has("subs") && !stateJson.has("ses")) return null
+            val st = fix(gson.fromJson(stateJson, AppState::class.java))
+            BackupInfo(st, st.subs.size, st.subs.sumOf { it.ch.size }, st.ses.size)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Replaces all data with the backup. The running timer is stopped so nothing stale carries over. */
+    fun applyBackup(info: BackupInfo) {
+        S = info.state.copy(tm = TimerState(), ph = "f")
+        save()
+        rebalanceFuture()
+        syncService()
+        toast("Backup restored")
+    }
+
     fun save() {
         try {
             appCtx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

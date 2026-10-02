@@ -1,6 +1,8 @@
 package com.devfahim00.zerostudy.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Backup
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SystemUpdate
@@ -66,6 +69,7 @@ import com.devfahim00.zerostudy.Exam
 import com.devfahim00.zerostudy.AlertSounds
 import com.devfahim00.zerostudy.Model
 import com.devfahim00.zerostudy.Updater
+import com.devfahim00.zerostudy.HyperIsland
 import com.devfahim00.zerostudy.fmtNum
 import com.devfahim00.zerostudy.hm
 import java.time.Instant
@@ -105,6 +109,10 @@ fun SettingsScreen() {
                 "revision" -> {
                     PageHeader("Revision schedule") { page = "" }
                     RevisionScheduleCard()
+                }
+                "backup" -> {
+                    PageHeader("Backup & restore") { page = "" }
+                    BackupPage()
                 }
                 "sound" -> {
                     PageHeader("Alert sound") { page = "" }
@@ -185,6 +193,11 @@ private fun SettingsMenu(onOpen: (String) -> Unit) {
             "sound", "Alert sound",
             AlertSounds.byId(Model.S.snd).name,
             Icons.Rounded.NotificationsActive
+        ),
+        MenuItem(
+            "backup", "Backup & restore",
+            "Export or import all your data",
+            Icons.Rounded.Backup
         ),
         MenuItem("exam", "Exam countdown", examSummary, Icons.Rounded.Event),
         MenuItem(
@@ -317,6 +330,90 @@ private fun SoundPage() {
     }
 }
 
+/* ---------------- backup ---------------- */
+
+@Composable
+private fun BackupPage() {
+    val p = pal()
+    val ctx = LocalContext.current
+    var pending by remember { mutableStateOf<Model.BackupInfo?>(null) }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            try {
+                ctx.contentResolver.openOutputStream(uri, "wt")?.use { it.write(Model.exportJson().toByteArray(Charsets.UTF_8)) }
+                Model.toast("Backup saved")
+            } catch (e: Exception) {
+                Model.toast("Could not save the file")
+            }
+        }
+    }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            try {
+                val text = ctx.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) }.orEmpty()
+                val info = Model.parseBackup(text)
+                if (info == null) Model.toast("This is not a ZeroStudy backup file") else pending = info
+            } catch (e: Exception) {
+                Model.toast("Could not read the file")
+            }
+        }
+    }
+
+    AppCard {
+        H2("Export")
+        Mut(
+            "Saves your subjects, chapters, revisions, sessions, goals, exams and settings to one file. Keep it somewhere safe or move it to a new phone.",
+            size = 12.sp,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+        AppButton(
+            "Export data",
+            onClick = { exportLauncher.launch("zerostudy-backup-" + java.time.LocalDate.now() + ".json") },
+            primary = true
+        )
+    }
+    AppCard {
+        H2("Import")
+        Mut(
+            "Restores a backup file. This replaces everything currently in the app, so export first if you want to keep it.",
+            size = 12.sp,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+        AppButton(
+            "Import data",
+            onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream", "*/*")) }
+        )
+    }
+
+    pending?.let { info ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { pending = null },
+            containerColor = p.card,
+            title = { Text("Replace current data?", color = p.ink, style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)) },
+            text = {
+                Mut(
+                    "The backup has ${info.subjects} subjects, ${info.chapters} chapters and ${info.sessions} sessions. " +
+                        "Everything in the app right now will be replaced.",
+                    size = 14.sp
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { Model.applyBackup(info); pending = null }) {
+                    Text("Replace", color = p.red, style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.SemiBold))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pending = null }) {
+                    Text("Cancel", color = p.ink, style = TextStyle(fontFamily = Sora))
+                }
+            }
+        )
+    }
+}
+
 /* ---------------- community + updates ---------------- */
 
 private const val TELEGRAM_URL = "https://t.me/projectredfox"
@@ -363,6 +460,45 @@ private fun CommunityCard() {
                 Mut("Updates, help and feedback", size = 12.sp, modifier = Modifier.padding(top = 2.dp))
             }
             Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = p.mut, modifier = Modifier.size(22.dp))
+        }
+        if (HyperIsland.supported(ctx)) {
+            ItemDivider()
+            var allowed by remember { mutableStateOf<Boolean?>(null) }
+            androidx.compose.runtime.LaunchedEffect(Unit) { allowed = HyperIsland.hasPermission(ctx) }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { HyperIsland.openSettings(ctx) }
+                    .padding(vertical = 6.dp)
+            ) {
+                Box(
+                    Modifier
+                        .size(40.dp)
+                        .background(p.inp, RoundedCornerShape(12.dp))
+                        .border(1.dp, p.line, RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Rounded.Timer, contentDescription = null, tint = p.a, modifier = Modifier.size(20.dp))
+                }
+                Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
+                    Text(
+                        "Hyper Island timer",
+                        style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 15.sp),
+                        color = p.ink
+                    )
+                    Mut(
+                        when (allowed) {
+                            true -> "On · timer shows around the camera"
+                            false -> "Off · tap and allow Focus / Island notifications"
+                            null -> "Checking…"
+                        },
+                        size = 12.sp,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+                Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = p.mut, modifier = Modifier.size(22.dp))
+            }
         }
         ItemDivider()
         // check for update

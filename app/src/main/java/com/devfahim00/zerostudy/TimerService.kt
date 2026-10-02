@@ -33,6 +33,7 @@ class TimerService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private var foreground = false
     private var lastSig = ""
+    private val island by lazy { HyperIsland.supported(this) }
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -42,6 +43,13 @@ class TimerService : Service() {
                 return
             }
             if (signature() != lastSig) refresh()
+            else if (island && Model.S.tm.run && foreground) {
+                // the island shows text, so it needs a fresh value every second
+                try {
+                    NotificationManagerCompat.from(this@TimerService).notify(NOTIF_RUN, buildNotification())
+                } catch (_: SecurityException) {
+                }
+            }
             handler.postDelayed(this, 1000)
         }
     }
@@ -156,6 +164,7 @@ class TimerService : Service() {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(open)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+        if (island) b.addExtras(HyperIsland.picsExtras(this))
         if (t.run) {
             if (target > 0) {
                 val endAt = t.start + (target - t.acc)
@@ -171,7 +180,19 @@ class TimerService : Service() {
             b.setShowWhen(false).setContentText("Paused · $left")
             b.addAction(0, "Resume", toggle)
         }
-        return b.build()
+        val n = b.build()
+        if (island) {
+            val sec = Model.dispSec().toLong()
+            val time = if (sec >= 3600) "${sec / 3600}:${p2((sec % 3600) / 60)}:${p2(sec % 60)}" else "${p2(sec / 60)}:${p2(sec % 60)}"
+            val status = when {
+                !t.run -> "Paused"
+                target <= 0L -> "Stopwatch"
+                focus -> "left"
+                else -> "break left"
+            }
+            HyperIsland.attach(n, if (focus) "Focus" else "Break", time, status)
+        }
+        return n
     }
 
     companion object {
