@@ -71,7 +71,7 @@ data class AppState(
     val exams: List<Exam> = emptyList(),
     val theme: String = "dark",
     val sc: String = "",
-    val snd: String = "beep" // id of the chosen alert sound (see AlertSounds)
+    val snd: String = "sonar" // id of the chosen alert sound (see AlertSounds)
 )
 
 /* ---------------- model ---------------- */
@@ -107,6 +107,16 @@ object Model {
                 AppState()
             }
         } else AppState()
+        migrateDefaultSound()
+    }
+
+    /** v1.0.0 stored "beep" as the default sound; the default is now "sonar". One-time switch. */
+    private fun migrateDefaultSound() {
+        val prefs = appCtx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (prefs.getBoolean("snd_default_sonar", false)) return
+        if (S.snd == "beep") S = S.copy(snd = AlertSounds.DEFAULT)
+        prefs.edit().putBoolean("snd_default_sonar", true).apply()
+        save()
     }
 
     /** Defensive fill for any missing/null collections from older JSON. */

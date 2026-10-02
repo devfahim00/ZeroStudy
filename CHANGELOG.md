@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.1] - 2026-10-02
+
+### Fixed
+- **Alert sounds no longer distort.** All 12 sounds were remastered with a smooth limiter instead of hard clipping, so they stay clean while still being loud and equally loud with each other.
+
+### Changed
+- **Sonar is now the default alert sound** (you can still pick any of the 12 in Settings → Alert sound).
+- **Subject selection on Home is now a dropdown**, like the chapter selector. It supports picking several subjects, and your picks show in a row you can swipe left/right. No more crowded home screen when you have many subjects.
+
 ## [1.0.0] - 2026-10-02
 
 First stable release of **ZeroStudy** — a focus & study tracker for Android.

@@ -4,7 +4,7 @@ package com.devfahim00.zerostudy
 data class AlertSound(val id: String, val name: String, val hint: String, val res: Int)
 
 object AlertSounds {
-    const val DEFAULT = "beep"
+    const val DEFAULT = "sonar"
 
     val all = listOf(
         AlertSound("beep", "Classic beep", "Triple digital beep", R.raw.alert_beep),
@@ -21,5 +21,5 @@ object AlertSounds {
         AlertSound("rise", "Whistle rise", "Sweeping rising tone", R.raw.alert_rise)
     )
 
-    fun byId(id: String?): AlertSound = all.firstOrNull { it.id == id } ?: all.first()
+    fun byId(id: String?): AlertSound = all.firstOrNull { it.id == id } ?: all.first { it.id == DEFAULT }
 }
