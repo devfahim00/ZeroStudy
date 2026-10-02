@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0] - 2026-10-02
+
+### New
+- **Backup & restore.** Settings → Backup & restore lets you export all your data (subjects, chapters, revisions, sessions, goals, exams, settings) to a file and import it back, for example on a new phone. Importing shows what is inside the backup and asks before replacing your current data.
+- **Hyper Island timer (Xiaomi / HyperOS).** The running timer is now sent as a HyperOS island / focus notification, so the countdown shows around the camera cutout and on the lock screen like the Clock app. Settings has a "Hyper Island timer" row that shows whether it is allowed and opens the notification settings where you turn it on.
+
+### Improved
+- The timer notification now also updates every second on HyperOS so the island always shows the current time.
+
+### Notes
+- On HyperOS, open **Settings → Hyper Island timer** once and allow "Focus / Island notifications" for ZeroStudy. Without that switch HyperOS only shows the normal notification.
+
 ## [1.1.0] - 2026-10-02
 
 ### New
