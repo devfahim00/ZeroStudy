@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,6 +43,7 @@ import androidx.compose.material.icons.rounded.TrackChanges
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -473,18 +475,88 @@ private fun SideAction(icon: ImageVector, label: String, desc: String, onClick: 
 
 /* ---------------- subject chips + chapter select ---------------- */
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun Chips() {
     val locked = Model.subjectLocked()
+    val subs = Model.S.subs
+    val sel = Model.S.sel
+    val picked = subs.filter { sel.contains(it.id) }
+    var expanded by remember { mutableStateOf(false) }
+    val label = when {
+        picked.isEmpty() -> "All subjects"
+        picked.size == 1 -> picked[0].n
+        else -> "${picked.size} subjects"
+    }
     Column(Modifier.padding(top = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ExposedDropdownMenuBox(
+            expanded = expanded && !locked,
+            onExpandedChange = { if (!locked) expanded = it },
+            modifier = Modifier
+                .width(320.dp)
+                .graphicsLayer { alpha = if (locked) 0.45f else 1f }
         ) {
-            Chip("All subjects", Model.S.sel.isEmpty(), enabled = !locked) { Model.toggleSel(null) }
-            Model.S.subs.forEach { s ->
-                Chip(s.n, Model.S.sel.contains(s.id), subjectColor(s.c), !locked) { Model.toggleSel(s.id) }
+            OutlinedTextField(
+                value = label,
+                onValueChange = {},
+                readOnly = true,
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = AppTextFieldColors(),
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded && !locked) },
+                textStyle = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 15.sp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor()
+            )
+            // multi-select: the menu stays open so several subjects can be ticked
+            ExposedDropdownMenu(expanded = expanded && !locked, onDismissRequest = { expanded = false }) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            "All subjects",
+                            style = TextStyle(fontFamily = Sora, fontSize = 14.sp),
+                            color = if (sel.isEmpty()) pal().a else pal().ink
+                        )
+                    },
+                    trailingIcon = {
+                        if (sel.isEmpty()) Icon(Icons.Rounded.Check, contentDescription = null, tint = pal().a, modifier = Modifier.size(18.dp))
+                    },
+                    onClick = { Model.toggleSel(null); expanded = false }
+                )
+                subs.forEach { sub ->
+                    val on = sel.contains(sub.id)
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Dot(subjectColor(sub.c), 10.dp)
+                                Text(
+                                    sub.n,
+                                    style = TextStyle(fontFamily = Sora, fontSize = 14.sp),
+                                    color = if (on) pal().a else pal().ink
+                                )
+                            }
+                        },
+                        trailingIcon = {
+                            if (on) Icon(Icons.Rounded.Check, contentDescription = null, tint = pal().a, modifier = Modifier.size(18.dp))
+                        },
+                        onClick = { Model.toggleSel(sub.id) }
+                    )
+                }
+            }
+        }
+        // picked subjects as one swipeable row (drag side to side when there are many)
+        if (picked.size > 1) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .padding(top = 10.dp)
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+            ) {
+                picked.forEach { sub ->
+                    Chip(sub.n, true, subjectColor(sub.c), !locked) { Model.toggleSel(sub.id) }
+                }
             }
         }
         if (locked) {
