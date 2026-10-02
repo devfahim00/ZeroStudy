@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.2] - 2026-10-02
+
+### Fixed
+- **Hyper Island is now balanced.** The compact island had everything on one side and left the other side empty. It now shows only the app icon on the left and the timer on the right, so both sides of the camera are used evenly.
+
+### Changed
+- Removed the "Icon only" island style. Hyper Island settings now have **Compact** and **Off**. If you had Icon only selected it switches to Compact.
+
 ## [1.2.1] - 2026-10-02
 
 ### Fixed
