@@ -112,7 +112,7 @@ fun Pill(icon: ImageVector, text: String) {
 }
 
 @Composable
-fun Chip(text: String, on: Boolean, color: Color = pal().a, onClick: () -> Unit) {
+fun Chip(text: String, on: Boolean, color: Color = pal().a, enabled: Boolean = true, onClick: () -> Unit) {
     val p = pal()
     val bg = if (on) lerp(p.card, color, 0.16f) else p.card
     Text(
@@ -125,9 +125,10 @@ fun Chip(text: String, on: Boolean, color: Color = pal().a, onClick: () -> Unit)
         color = if (on) p.ink else p.mut,
         textAlign = TextAlign.Center,
         modifier = Modifier
+            .graphicsLayer { alpha = if (enabled) 1f else 0.45f }
             .background(bg, RoundedCornerShape(99.dp))
             .border(1.dp, if (on) color else p.line, RoundedCornerShape(99.dp))
-            .clickable { onClick() }
+            .clickable(enabled = enabled) { onClick() }
             .padding(horizontal = 14.dp, vertical = 7.dp)
     )
 }

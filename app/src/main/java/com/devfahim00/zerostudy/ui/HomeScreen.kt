@@ -36,6 +36,7 @@ import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.TrackChanges
 import androidx.compose.material3.DropdownMenuItem
@@ -475,14 +476,25 @@ private fun SideAction(icon: ImageVector, label: String, desc: String, onClick: 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Chips() {
+    val locked = Model.subjectLocked()
     Column(Modifier.padding(top = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Chip("All subjects", Model.S.sel.isEmpty()) { Model.toggleSel(null) }
+            Chip("All subjects", Model.S.sel.isEmpty(), enabled = !locked) { Model.toggleSel(null) }
             Model.S.subs.forEach { s ->
-                Chip(s.n, Model.S.sel.contains(s.id), subjectColor(s.c)) { Model.toggleSel(s.id) }
+                Chip(s.n, Model.S.sel.contains(s.id), subjectColor(s.c), !locked) { Model.toggleSel(s.id) }
+            }
+        }
+        if (locked) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(top = 12.dp)
+            ) {
+                Icon(Icons.Rounded.Lock, contentDescription = null, tint = pal().mut, modifier = Modifier.size(14.dp))
+                Mut("Subject is locked until you save or reset this session", size = 12.sp)
             }
         }
     }
@@ -495,13 +507,15 @@ private fun ChapterSelect() {
     val chapters = one?.ch ?: emptyList()
     if (one == null || chapters.isEmpty()) return
     var expanded by remember { mutableStateOf(false) }
+    val locked = Model.subjectLocked()
     val selected = chapters.find { it.id == Model.S.sc }
     ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
+        expanded = expanded && !locked,
+        onExpandedChange = { if (!locked) expanded = it },
         modifier = Modifier
             .padding(top = 12.dp)
             .width(320.dp)
+            .graphicsLayer { alpha = if (locked) 0.45f else 1f }
     ) {
         OutlinedTextField(
             value = selected?.n ?: "",

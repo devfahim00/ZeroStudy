@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -17,16 +18,22 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.DoneAll
+import androidx.compose.material.icons.rounded.TrackChanges
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -47,6 +55,7 @@ import com.devfahim00.zerostudy.Subject
 import com.devfahim00.zerostudy.fmtNum
 import com.devfahim00.zerostudy.hm
 import com.devfahim00.zerostudy.wk
+import kotlinx.coroutines.delay
 
 @Composable
 fun SubjectsScreen() {
@@ -174,17 +183,26 @@ private fun SubjectCard(s: Subject) {
                 }
                 ItemDivider()
 
-                FlowRow(
+                Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Chip("Add chapter", panel == "chapter", color) { panel = if (panel == "chapter") "" else "chapter" }
-                    Chip("Weekly target", panel == "target", color) { panel = if (panel == "target") "" else "target" }
-                    if (s.ch.any { it.done <= 0 }) {
-                        AskButton("Mark all studied") { Model.markAllStudiedEarlier(s.id) }
+                    IconAction(Icons.Rounded.Add, "Add chapter", panel == "chapter", color) {
+                        panel = if (panel == "chapter") "" else "chapter"
                     }
-                    AskButton("Remove subject") { Model.removeSubject(s.id) }
+                    IconAction(Icons.Rounded.TrackChanges, "Weekly target", panel == "target", color) {
+                        panel = if (panel == "target") "" else "target"
+                    }
+                    if (s.ch.any { it.done <= 0 }) {
+                        ConfirmIconAction(Icons.Rounded.DoneAll, "Mark all chapters as studied", color) {
+                            Model.markAllStudiedEarlier(s.id)
+                        }
+                    }
+                    Spacer(Modifier.weight(1f))
+                    ConfirmIconAction(Icons.Rounded.Delete, "Remove subject", p.mut) {
+                        Model.removeSubject(s.id)
+                    }
                 }
 
                 AnimatedVisibility(visible = panel == "chapter") {
@@ -240,7 +258,12 @@ private fun ChapterRow(s: Subject, c: Chapter, studiedSec: Long) {
     val p = pal()
     val color = subjectColor(s.c)
     val done = c.done > 0
-    val selected = Model.effSc() == c.id
+    val diff: Pair<String, Color>? = when (c.dif) {
+        "e" -> "Easy" to p.ok
+        "m" -> "Medium" to p.warn
+        "h" -> "Hard" to p.red
+        else -> null
+    }
     var expanded by remember(c.id) { mutableStateOf(false) }
     var asking by remember(c.id) { mutableStateOf(false) }
 
@@ -279,17 +302,17 @@ private fun ChapterRow(s: Subject, c: Chapter, studiedSec: Long) {
                         color = if (done) p.mut else p.ink,
                         modifier = Modifier.weight(1f, fill = false)
                     )
-                    // the chapter currently picked for the timer on Home
-                    if (selected) {
+                    // selected difficulty, shown beside the chapter name
+                    if (diff != null) {
                         Text(
-                            "Selected",
+                            diff.first,
                             style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 11.sp),
-                            color = color,
+                            color = diff.second,
                             maxLines = 1,
                             modifier = Modifier
                                 .padding(start = 8.dp)
-                                .background(lerp(p.card, color, 0.18f), RoundedCornerShape(99.dp))
-                                .border(1.dp, lerp(p.line, color, 0.5f), RoundedCornerShape(99.dp))
+                                .background(lerp(p.card, diff.second, 0.18f), RoundedCornerShape(99.dp))
+                                .border(1.dp, lerp(p.line, diff.second, 0.5f), RoundedCornerShape(99.dp))
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         )
                     }
@@ -417,5 +440,60 @@ private fun AddChapterRow(s: Subject) {
             modifier = Modifier.weight(1f).bringIntoViewOnFocus()
         )
         AppButton("Add", { tryAdd() }, primary = true)
+    }
+}
+
+/* ---------------- icon actions ---------------- */
+
+@Composable
+private fun IconAction(icon: ImageVector, desc: String, on: Boolean, color: Color, onClick: () -> Unit) {
+    val p = pal()
+    Box(
+        Modifier
+            .size(40.dp)
+            .background(if (on) lerp(p.card, color, 0.16f) else p.card, CircleShape)
+            .border(1.dp, if (on) color else p.line, CircleShape)
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = desc, tint = if (on) color else p.ink, modifier = Modifier.size(20.dp))
+    }
+}
+
+/** Icon button that asks "Sure?" on the first tap and acts on the second. */
+@Composable
+private fun ConfirmIconAction(icon: ImageVector, desc: String, tint: Color, onConfirm: () -> Unit) {
+    val p = pal()
+    var confirming by remember { mutableStateOf(false) }
+    LaunchedEffect(confirming) {
+        if (confirming) {
+            delay(2500)
+            confirming = false
+        }
+    }
+    val shape = RoundedCornerShape(99.dp)
+    Row(
+        Modifier
+            .height(40.dp)
+            .background(if (confirming) lerp(p.card, p.red, 0.18f) else p.card, shape)
+            .border(1.dp, if (confirming) p.red else p.line, shape)
+            .clickable {
+                if (confirming) {
+                    confirming = false
+                    onConfirm()
+                } else confirming = true
+            }
+            .padding(horizontal = if (confirming) 14.dp else 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Icon(icon, contentDescription = desc, tint = if (confirming) p.red else tint, modifier = Modifier.size(20.dp))
+        if (confirming) {
+            Text(
+                "Sure?",
+                style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 13.sp),
+                color = p.red
+            )
+        }
     }
 }

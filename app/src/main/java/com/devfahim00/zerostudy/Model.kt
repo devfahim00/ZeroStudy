@@ -264,7 +264,10 @@ object Model {
         }
         val e = el()
         if (e < 5000) {
-            toast("Study at least 5 seconds to save")
+            // too short to count: reset, which also unlocks the subject selection
+            resetTm()
+            save()
+            toast("Under 5 seconds, not saved. Timer reset")
             return
         }
         S = S.copy(
@@ -279,6 +282,9 @@ object Model {
         save()
         toast("Saved " + hm(e / 1000))
     }
+
+    /** Subject/chapter can't be changed once a focus session has started (running or paused). */
+    fun subjectLocked(): Boolean = S.ph == "f" && (S.tm.run || S.tm.acc > 0L)
 
     /** Chapter id is only valid when exactly one subject with chapters is selected. */
     fun effSc(): String {
@@ -475,6 +481,10 @@ object Model {
     }
 
     fun removeSubject(id: String) {
+        if (subjectLocked() && S.sel.contains(id)) {
+            toast("This subject is in use. Save or reset the session first")
+            return
+        }
         S = S.copy(
             subs = S.subs.filter { it.id != id },
             sel = S.sel - id,
@@ -570,6 +580,10 @@ object Model {
     }
 
     fun toggleSel(id: String?) {
+        if (subjectLocked()) {
+            toast("Subject is locked during a session")
+            return
+        }
         S = if (id == null) S.copy(sel = emptyList())
         else if (S.sel.contains(id)) S.copy(sel = S.sel - id)
         else S.copy(sel = S.sel + id)
@@ -577,6 +591,10 @@ object Model {
     }
 
     fun setSc(id: String) {
+        if (subjectLocked()) {
+            toast("Chapter is locked during a session")
+            return
+        }
         S = S.copy(sc = id)
         save()
     }
