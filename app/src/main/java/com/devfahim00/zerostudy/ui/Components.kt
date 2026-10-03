@@ -62,13 +62,13 @@ import androidx.compose.ui.platform.LocalFocusManager
 /* ---------- card ---------- */
 
 @Composable
-fun AppCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+fun AppCard(modifier: Modifier = Modifier, padding: Dp = 18.dp, content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = modifier
             .fillMaxWidth()
             .background(pal().card, RoundedCornerShape(22.dp))
             .border(1.dp, pal().line, RoundedCornerShape(22.dp))
-            .padding(18.dp),
+            .padding(padding),
         content = content
     )
 }

@@ -1,6 +1,11 @@
 package com.devfahim00.zerostudy.ui
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
+import com.devfahim00.zerostudy.Chapter
+import androidx.compose.ui.unit.Dp
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -86,49 +91,48 @@ import kotlin.random.Random
 
 @Composable
 fun HomeScreen() {
-    val p = pal()
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 22.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        // On normal phones everything fits in one screen (the timer takes the leftover space).
+        // Only on very short screens does the page fall back to scrolling.
+        val fits = maxHeight >= 600.dp
+        val base = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)
         Column(
-            Modifier.fillMaxWidth().widthIn(max = 560.dp),
-            verticalArrangement = Arrangement.spacedBy(0.dp),
+            if (fits) base else base.verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            TopBar()
-            TimerStage()
-            Controls()
-            Chips()
-            ChapterSelect()
-            Spacer(Modifier.height(24.dp))
-            TodayCard()
-            Spacer(Modifier.height(14.dp))
-            RevisionCard()
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 560.dp)
+                    .then(if (fits) Modifier.fillMaxHeight() else Modifier),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                TopBar()
+                TimerStage(if (fits) Modifier.weight(1f).heightIn(min = 150.dp) else Modifier.padding(vertical = 12.dp), fits)
+                Controls()
+                Selectors()
+                Spacer(Modifier.height(10.dp))
+                TodayCard()
+                Spacer(Modifier.height(8.dp))
+                RevisionCard(if (maxHeight >= 720.dp) 2 else 1)
+            }
         }
     }
 }
 
 /* ---------------- top bar ---------------- */
 
-/** One slim row: streak + level on the left, the sound switch on the right. */
+/** One slim row: streak on the left, the sound switch on the right. */
 @Composable
 private fun TopBar() {
     val streak = Model.streak()
-    val level = Model.levelOf(Model.S.xp)
     val amb = Model.S.amb
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Pill(Icons.Rounded.LocalFireDepartment, "$streak")
-            Pill(Icons.Rounded.Star, "Lv $level")
-        }
+        Pill(Icons.Rounded.LocalFireDepartment, "$streak")
         Pill(
             if (amb == "off") Icons.Rounded.VolumeOff else Icons.Rounded.MusicNote,
             if (amb == "off") "Off" else AmbientSounds.byId(amb).name,
@@ -139,7 +143,7 @@ private fun TopBar() {
 
 /* ---------------- today card ---------------- */
 
-/** Daily goal, level progress and upcoming exams, grouped in one calm card. */
+/** Focus goal, level and the next exam as three compact blocks in one card. */
 @Composable
 private fun TodayCard() {
     val p = pal()
@@ -148,62 +152,66 @@ private fun TodayCard() {
     val goalSec = (gd * 3600).toLong()
     val level = Model.levelOf(Model.S.xp)
     val (inLevel, levelNeed) = Model.levelProgress()
-    val exams = Model.upcomingExams().take(3)
-    AppCard {
-        H2("Today")
-        // focus goal
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.TrackChanges, contentDescription = null, tint = p.a, modifier = Modifier.size(18.dp))
-            Text(
-                "Focus",
-                style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 15.sp),
-                color = p.ink,
-                modifier = Modifier.weight(1f).padding(start = 10.dp)
-            )
-            Mut(hm(today) + (if (gd > 0) " / " + hm(goalSec) else ""), size = 13.sp)
-        }
-        if (gd > 0 && goalSec > 0) {
-            Bar(today.toFloat() / goalSec, height = 6.dp, modifier = Modifier.padding(top = 10.dp))
-        }
-        Spacer(Modifier.height(12.dp))
-        ItemDivider()
-        // level
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
-            Icon(Icons.Rounded.Star, contentDescription = null, tint = p.a, modifier = Modifier.size(18.dp))
-            Text(
-                "Level $level",
-                style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 15.sp),
-                color = p.ink,
-                modifier = Modifier.weight(1f).padding(start = 10.dp)
-            )
-            Mut("$inLevel / $levelNeed XP", size = 13.sp)
-        }
-        Bar(
-            if (levelNeed > 0) inLevel.toFloat() / levelNeed else 0f,
-            height = 6.dp,
-            modifier = Modifier.padding(top = 10.dp)
+    val exams = Model.upcomingExams()
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(p.card, RoundedCornerShape(20.dp))
+            .border(1.dp, p.line, RoundedCornerShape(20.dp))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        StatBlock(
+            Icons.Rounded.TrackChanges, "Focus",
+            hm(today) + (if (gd > 0) " / " + hm(goalSec) else ""),
+            if (gd > 0 && goalSec > 0) today.toFloat() / goalSec else null,
+            Modifier.weight(1f)
         )
-        // exams
+        StatBlock(
+            Icons.Rounded.Star, "Level $level", "$inLevel / $levelNeed XP",
+            if (levelNeed > 0) inLevel.toFloat() / levelNeed else 0f,
+            Modifier.weight(1f)
+        )
         if (exams.isNotEmpty()) {
-            Spacer(Modifier.height(12.dp))
-            ItemDivider()
-            exams.forEach { (exam, days) ->
-                val name = exam.n.ifBlank { "Exam" }
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
-                    Icon(Icons.Rounded.CalendarToday, contentDescription = null, tint = p.a, modifier = Modifier.size(18.dp))
-                    Text(
-                        name,
-                        style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 15.sp),
-                        color = p.ink,
-                        maxLines = 1,
-                        modifier = Modifier.weight(1f).padding(start = 10.dp)
-                    )
-                    Mut(
-                        if (days == 0L) "Today" else "$days ${if (days == 1L) "day" else "days"}",
-                        size = 13.sp
-                    )
-                }
-            }
+            val (exam, days) = exams.first()
+            StatBlock(
+                Icons.Rounded.CalendarToday,
+                exam.n.ifBlank { "Exam" },
+                if (days == 0L) "Today" else "$days ${if (days == 1L) "day" else "days"}",
+                null,
+                Modifier.weight(1f),
+                foot = if (exams.size > 1) "+${exams.size - 1} more" else null
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatBlock(
+    icon: ImageVector,
+    title: String,
+    value: String,
+    progress: Float?,
+    modifier: Modifier = Modifier,
+    foot: String? = null
+) {
+    val p = pal()
+    Column(modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            Icon(icon, contentDescription = null, tint = p.a, modifier = Modifier.size(13.dp))
+            Mut(title, size = 11.sp, modifier = Modifier.weight(1f, fill = false))
+        }
+        Text(
+            value,
+            style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 14.sp),
+            color = p.ink,
+            maxLines = 1,
+            modifier = Modifier.padding(top = 3.dp)
+        )
+        if (progress != null) {
+            Bar(progress, height = 5.dp, modifier = Modifier.padding(top = 7.dp))
+        } else if (foot != null) {
+            Mut(foot, size = 11.sp, modifier = Modifier.padding(top = 4.dp))
         }
     }
 }
@@ -211,69 +219,14 @@ private fun TodayCard() {
 /* ---------------- timer stage ---------------- */
 
 @Composable
-private fun TimerStage() {
-    val cfg = LocalConfiguration.current
-    val stage = minOf(cfg.screenWidthDp.dp * 0.78f, 340.dp)
-
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(top = 16.dp, bottom = 22.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        PhaseBadge()
-        Spacer(Modifier.height(26.dp))
+private fun TimerStage(modifier: Modifier, fits: Boolean) {
+    BoxWithConstraints(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        val stage = if (fits) minOf(maxWidth * 0.82f, maxHeight, 340.dp) else minOf(maxWidth * 0.72f, 250.dp)
         Box(Modifier.size(stage).aspectRatio(1f)) {
             ParticleCanvas()
             RingCanvas()
-            TimerCenter()
+            TimerCenter(stage)
         }
-    }
-}
-
-/** Small status capsule above the ring: FOCUS / BREAK / PAUSED / READY. */
-@Composable
-private fun PhaseBadge() {
-    val p = pal()
-    val focus = Model.S.ph == "f"
-    val run = Model.S.tm.run
-    val accent = if (focus) p.a else p.ok
-    val label = when {
-        !focus -> if (run) "BREAK" else "BREAK PAUSED"
-        run -> "FOCUS"
-        Model.el() > 0 -> "PAUSED"
-        else -> "READY"
-    }
-    val pulse = rememberInfiniteTransition(label = "pulse").animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
-        label = "dot"
-    )
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier
-            .background(lerp(p.card, accent, 0.10f), RoundedCornerShape(99.dp))
-            .border(1.dp, lerp(p.line, accent, 0.45f), RoundedCornerShape(99.dp))
-            .padding(horizontal = 14.dp, vertical = 6.dp)
-    ) {
-        Box(
-            Modifier
-                .size(8.dp)
-                .graphicsLayer { alpha = if (run) pulse.value else 1f }
-                .background(accent, CircleShape)
-        )
-        Text(
-            label,
-            style = TextStyle(
-                fontFamily = Sora,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 11.sp,
-                letterSpacing = 1.6.sp
-            ),
-            color = accent
-        )
     }
 }
 
@@ -418,10 +371,9 @@ private fun RingCanvas() {
 }
 
 @Composable
-private fun TimerCenter() {
+private fun TimerCenter(stage: Dp) {
     val p = pal()
-    val cfg = LocalConfiguration.current
-    val fontSize = (cfg.screenWidthDp * 0.09f).coerceIn(30f, 46f).sp
+    val fontSize = (stage.value * 0.135f).coerceIn(24f, 46f).sp
     val sec = Model.dispSec()
     val tm = p2((sec / 3600).toLong()) + ":" + p2((sec % 3600 / 60).toLong()) + ":" + p2((sec % 60).toLong())
     val t = Model.tgt()
@@ -485,13 +437,12 @@ private fun Controls() {
     val run = Model.S.tm.run
     val accent = if (focus) p.a else p.ok
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(26.dp, Alignment.CenterHorizontally)
+        horizontalArrangement = Arrangement.spacedBy(30.dp, Alignment.CenterHorizontally)
     ) {
         SideAction(
             icon = if (focus) Icons.Rounded.Check else Icons.Rounded.SkipNext,
-            label = if (focus) "Save" else "Skip",
             desc = if (focus) "Save session" else "Skip break"
         ) { Model.stop() }
 
@@ -499,12 +450,12 @@ private fun Controls() {
         Box(contentAlignment = Alignment.Center) {
             Box(
                 Modifier
-                    .size(96.dp)
+                    .size(84.dp)
                     .background(accent.copy(alpha = if (run) 0.16f else 0.08f), CircleShape)
             )
             Box(
                 Modifier
-                    .size(76.dp)
+                    .size(66.dp)
                     .background(
                         Brush.linearGradient(if (focus) listOf(p.a, p.b) else listOf(p.ok, p.a)),
                         CircleShape
@@ -516,116 +467,54 @@ private fun Controls() {
                     if (run) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     contentDescription = if (run) "Pause" else if (Model.el() > 0) "Resume" else "Start",
                     tint = Color(0xFF05060A),
-                    modifier = Modifier.size(34.dp)
+                    modifier = Modifier.size(30.dp)
                 )
             }
         }
 
-        SideAction(
-            icon = Icons.Rounded.Fullscreen,
-            label = "Full screen",
-            desc = "Full screen"
-        ) { Model.fullscreen = true }
+        SideAction(icon = Icons.Rounded.Fullscreen, desc = "Full screen") { Model.fullscreen = true }
     }
 }
 
 @Composable
-private fun SideAction(icon: ImageVector, label: String, desc: String, onClick: () -> Unit) {
+private fun SideAction(icon: ImageVector, desc: String, onClick: () -> Unit) {
     val p = pal()
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            Modifier
-                .size(54.dp)
-                .background(p.card, CircleShape)
-                .border(1.dp, p.line, CircleShape)
-                .clickable { onClick() },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icon, contentDescription = desc, tint = p.ink, modifier = Modifier.size(22.dp))
-        }
-        Spacer(Modifier.height(6.dp))
-        Mut(label, size = 11.sp)
+    Box(
+        Modifier
+            .size(48.dp)
+            .background(p.card, CircleShape)
+            .border(1.dp, p.line, CircleShape)
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = desc, tint = p.ink, modifier = Modifier.size(21.dp))
     }
 }
 
-/* ---------------- subject chips + chapter select ---------------- */
+/* ---------------- subject + chapter selectors ---------------- */
 
+/** Subject and (when one subject is picked) chapter dropdowns side by side in one row. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Chips() {
+private fun Selectors() {
     val locked = Model.subjectLocked()
     val subs = Model.S.subs
     val sel = Model.S.sel
     val picked = subs.filter { sel.contains(it.id) }
-    var expanded by remember { mutableStateOf(false) }
-    val label = when {
-        picked.isEmpty() -> "All subjects"
-        picked.size == 1 -> picked[0].n
-        else -> "${picked.size} subjects"
-    }
-    Column(Modifier.padding(top = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        ExposedDropdownMenuBox(
-            expanded = expanded && !locked,
-            onExpandedChange = { if (!locked) expanded = it },
-            modifier = Modifier
-                .width(320.dp)
-                .graphicsLayer { alpha = if (locked) 0.45f else 1f }
-        ) {
-            OutlinedTextField(
-                value = label,
-                onValueChange = {},
-                readOnly = true,
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                colors = AppTextFieldColors(),
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded && !locked) },
-                textStyle = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 15.sp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor()
-            )
-            // multi-select: the menu stays open so several subjects can be ticked
-            ExposedDropdownMenu(expanded = expanded && !locked, onDismissRequest = { expanded = false }) {
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            "All subjects",
-                            style = TextStyle(fontFamily = Sora, fontSize = 14.sp),
-                            color = if (sel.isEmpty()) pal().a else pal().ink
-                        )
-                    },
-                    trailingIcon = {
-                        if (sel.isEmpty()) Icon(Icons.Rounded.Check, contentDescription = null, tint = pal().a, modifier = Modifier.size(18.dp))
-                    },
-                    onClick = { Model.toggleSel(null); expanded = false }
-                )
-                subs.forEach { sub ->
-                    val on = sel.contains(sub.id)
-                    DropdownMenuItem(
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Dot(subjectColor(sub.c), 10.dp)
-                                Text(
-                                    sub.n,
-                                    style = TextStyle(fontFamily = Sora, fontSize = 14.sp),
-                                    color = if (on) pal().a else pal().ink
-                                )
-                            }
-                        },
-                        trailingIcon = {
-                            if (on) Icon(Icons.Rounded.Check, contentDescription = null, tint = pal().a, modifier = Modifier.size(18.dp))
-                        },
-                        onClick = { Model.toggleSel(sub.id) }
-                    )
-                }
-            }
+    val one = if (sel.size == 1) subs.find { it.id == sel[0] } else null
+    val chapters = one?.ch ?: emptyList()
+    val showChapter = one != null && chapters.isNotEmpty()
+    Column(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            SubjectDropdown(picked.map { it.id }, locked, Modifier.weight(1f))
+            if (showChapter) ChapterDropdown(chapters, locked, Modifier.weight(1f))
         }
         // picked subjects as one swipeable row (drag side to side when there are many)
         if (picked.size > 1) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
-                    .padding(top = 10.dp)
+                    .padding(top = 8.dp)
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
             ) {
@@ -638,10 +527,10 @@ private fun Chips() {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.padding(top = 12.dp)
+                modifier = Modifier.padding(top = 6.dp)
             ) {
-                Icon(Icons.Rounded.Lock, contentDescription = null, tint = pal().mut, modifier = Modifier.size(14.dp))
-                Mut("Subject is locked until you save or reset this session", size = 12.sp)
+                Icon(Icons.Rounded.Lock, contentDescription = null, tint = pal().mut, modifier = Modifier.size(12.dp))
+                Mut("Locked until you save or reset this session", size = 11.sp)
             }
         }
     }
@@ -649,37 +538,99 @@ private fun Chips() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ChapterSelect() {
-    val one = if (Model.S.sel.size == 1) Model.S.subs.find { it.id == Model.S.sel[0] } else null
-    val chapters = one?.ch ?: emptyList()
-    if (one == null || chapters.isEmpty()) return
+private fun SubjectDropdown(pickedIds: List<String>, locked: Boolean, modifier: Modifier) {
+    val subs = Model.S.subs
+    val sel = Model.S.sel
+    val picked = subs.filter { pickedIds.contains(it.id) }
     var expanded by remember { mutableStateOf(false) }
-    val locked = Model.subjectLocked()
+    val label = when {
+        picked.isEmpty() -> "All subjects"
+        picked.size == 1 -> picked[0].n
+        else -> "${picked.size} subjects"
+    }
+    ExposedDropdownMenuBox(
+        expanded = expanded && !locked,
+        onExpandedChange = { if (!locked) expanded = it },
+        modifier = modifier.graphicsLayer { alpha = if (locked) 0.45f else 1f }
+    ) {
+        OutlinedTextField(
+            value = label,
+            onValueChange = {},
+            readOnly = true,
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp),
+            colors = AppTextFieldColors(),
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded && !locked) },
+            textStyle = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 14.sp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor()
+        )
+        // multi-select: the menu stays open so several subjects can be ticked
+        ExposedDropdownMenu(expanded = expanded && !locked, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        "All subjects",
+                        style = TextStyle(fontFamily = Sora, fontSize = 14.sp),
+                        color = if (sel.isEmpty()) pal().a else pal().ink
+                    )
+                },
+                trailingIcon = {
+                    if (sel.isEmpty()) Icon(Icons.Rounded.Check, contentDescription = null, tint = pal().a, modifier = Modifier.size(18.dp))
+                },
+                onClick = { Model.toggleSel(null); expanded = false }
+            )
+            subs.forEach { sub ->
+                val on = sel.contains(sub.id)
+                DropdownMenuItem(
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Dot(subjectColor(sub.c), 10.dp)
+                            Text(
+                                sub.n,
+                                style = TextStyle(fontFamily = Sora, fontSize = 14.sp),
+                                color = if (on) pal().a else pal().ink
+                            )
+                        }
+                    },
+                    trailingIcon = {
+                        if (on) Icon(Icons.Rounded.Check, contentDescription = null, tint = pal().a, modifier = Modifier.size(18.dp))
+                    },
+                    onClick = { Model.toggleSel(sub.id) }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ChapterDropdown(chapters: List<Chapter>, locked: Boolean, modifier: Modifier) {
+    var expanded by remember { mutableStateOf(false) }
     val selected = chapters.find { it.id == Model.S.sc }
     ExposedDropdownMenuBox(
         expanded = expanded && !locked,
         onExpandedChange = { if (!locked) expanded = it },
-        modifier = Modifier
-            .padding(top = 12.dp)
-            .width(320.dp)
-            .graphicsLayer { alpha = if (locked) 0.45f else 1f }
+        modifier = modifier.graphicsLayer { alpha = if (locked) 0.45f else 1f }
     ) {
         OutlinedTextField(
             value = selected?.n ?: "",
             onValueChange = {},
             readOnly = true,
-            placeholder = { Mut("Chapter (optional)", size = 13.sp) },
+            placeholder = { Mut("Chapter", size = 13.sp) },
             singleLine = true,
             shape = RoundedCornerShape(12.dp),
             colors = AppTextFieldColors(),
-            textStyle = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 15.sp),
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded && !locked) },
+            textStyle = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 14.sp),
             modifier = Modifier
                 .fillMaxWidth()
                 .menuAnchor()
         )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        ExposedDropdownMenu(expanded = expanded && !locked, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(
-                text = { Mut("Chapter (optional)", size = 14.sp) },
+                text = { Mut("No chapter", size = 14.sp) },
                 onClick = { Model.setSc(""); expanded = false }
             )
             chapters.forEach { c ->
@@ -695,35 +646,35 @@ private fun ChapterSelect() {
 /* ---------------- revision card ---------------- */
 
 @Composable
-fun RevisionCard() {
+fun RevisionCard(maxItems: Int = 2) {
     val p = pal()
     val all = Model.dueItems()
     val now = System.currentTimeMillis()
     val dueAll = all.filter { it.due <= now }
-    val due = dueAll.take(Model.revCap())
-    val queued = dueAll.size - due.size
+    val due = dueAll.take(Model.revCap()).take(maxItems)
+    val more = dueAll.size - due.size
     val next = all.firstOrNull { it.due > now }
-    AppCard {
-        H2(if (due.isNotEmpty()) "Revise today · ${due.size}" else "Revision")
+    AppCard(padding = 14.dp) {
+        H2(if (dueAll.isNotEmpty()) "Revise today · ${dueAll.size}" else "Revision", Modifier.padding(bottom = 0.dp))
         if (due.isNotEmpty()) {
             Column {
                 due.forEachIndexed { i, x ->
                     if (i > 0) ItemDivider()
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(vertical = 10.dp)
+                        modifier = Modifier.padding(vertical = 7.dp)
                     ) {
                         Dot(subjectColor(x.sub.c))
                         Column(Modifier.weight(1f).padding(start = 10.dp)) {
                             Text(
                                 x.ch.n,
-                                style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 15.sp),
-                                color = p.ink
+                                style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 14.sp),
+                                color = p.ink,
+                                maxLines = 1
                             )
                             Mut(
-                                "${x.sub.n} · Revision ${x.ch.rv + 1}/${Model.S.cfg.rv.size} · " +
-                                    Model.whenStr(x.due),
-                                size = 13.sp
+                                "${x.sub.n} · Revision ${x.ch.rv + 1}/${Model.S.cfg.rv.size}",
+                                size = 12.sp
                             )
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -732,19 +683,15 @@ fun RevisionCard() {
                         }
                     }
                 }
-                if (queued > 0) {
-                    ItemDivider()
-                    Mut(
-                        "+$queued more waiting in the queue. They appear as you finish these.",
-                        size = 12.sp,
-                        modifier = Modifier.padding(top = 10.dp)
-                    )
+                if (more > 0) {
+                    Mut("+$more more · open the Revisions tab", size = 12.sp, modifier = Modifier.padding(top = 2.dp))
                 }
             }
         } else {
             Mut(
                 if (next != null) "All caught up. Next: ${next.ch.n} (${next.sub.n}) ${Model.whenStr(next.due)}"
-                else "Mark chapters complete in Subjects and they will show up here for revision."
+                else "Mark chapters complete in Subjects and they will show up here for revision.",
+                modifier = Modifier.padding(top = 8.dp)
             )
         }
     }

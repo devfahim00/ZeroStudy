@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.3.2] - 2026-10-03
+
+### Changed
+- **The whole home screen now fits on one screen, no scrolling.** The timer ring uses the space that is left, so it sits higher and the content below it (subject, Today card and revisions) is visible at once. Only on very short screens does the page still scroll.
+- Removed the Level pill from the top, because the Level now shows in the Today card.
+- Removed the READY / FOCUS / PAUSED badge above the timer. The state is still shown inside the ring.
+- Subject and chapter dropdowns share one row.
+- The Today card is a compact row with Focus goal, Level and the next exam (with "+N more" when you have more exams).
+- The Revise today card shows the first due chapters with Done / Forgot; the rest are in the Revisions tab.
+- Slightly smaller control buttons, without the text labels under them.
+
 ## [1.3.1] - 2026-10-03
 
 ### Changed
