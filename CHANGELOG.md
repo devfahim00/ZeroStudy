@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.1] - 2026-10-03
+
+### Changed
+- **Cleaner home screen.** The crowded row of pills at the top (streak, goal, level, sound and every exam) is gone. The top now has one slim line: streak and level on the left, the sound switch on the right. Your daily focus goal, level progress and upcoming exams moved into a calm "Today" card below the timer, so nothing is lost but the top stays light.
+
+### Fixed
+- **Ambient sound now loops seamlessly.** When Rain or Lo-fi reached the end and started again there was a small pause and the rain had an audible jump. The loop now repeats directly in the audio hardware with no gap, and the Rain loop was smoothed so its end blends into its start.
+
 ## [1.3.0] - 2026-10-03
 
 ### New

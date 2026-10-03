@@ -99,49 +99,111 @@ fun HomeScreen() {
             verticalArrangement = Arrangement.spacedBy(0.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Pills()
+            TopBar()
             TimerStage()
             Controls()
             Chips()
             ChapterSelect()
+            Spacer(Modifier.height(24.dp))
+            TodayCard()
             Spacer(Modifier.height(14.dp))
             RevisionCard()
         }
     }
 }
 
-/* ---------------- pills ---------------- */
+/* ---------------- top bar ---------------- */
 
-@OptIn(ExperimentalLayoutApi::class)
+/** One slim row: streak + level on the left, the sound switch on the right. */
 @Composable
-private fun Pills() {
+private fun TopBar() {
     val streak = Model.streak()
-    val today = Model.todaySec()
-    val gd = Model.S.goal.d
-    val exams = Model.upcomingExams().take(3)
     val level = Model.levelOf(Model.S.xp)
-    val (inLevel, levelNeed) = Model.levelProgress()
     val amb = Model.S.amb
-    FlowRow(
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Pill(Icons.Rounded.LocalFireDepartment, "$streak ${if (streak == 1) "day" else "days"}")
-        Pill(Icons.Rounded.TrackChanges, hm(today) + (if (gd > 0) " / " + hm((gd * 3600).toLong()) else ""))
-        Pill(Icons.Rounded.Star, "Lv $level · $inLevel/$levelNeed XP")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Pill(Icons.Rounded.LocalFireDepartment, "$streak")
+            Pill(Icons.Rounded.Star, "Lv $level")
+        }
         Pill(
             if (amb == "off") Icons.Rounded.VolumeOff else Icons.Rounded.MusicNote,
-            if (amb == "off") "Sound off" else AmbientSounds.byId(amb).name,
+            if (amb == "off") "Off" else AmbientSounds.byId(amb).name,
             onClick = { Model.cycleAmbient() }
         )
-        exams.forEach { (exam, days) ->
-            val name = exam.n.ifBlank { "Exam" }
-            Pill(
-                Icons.Rounded.CalendarToday,
-                if (days == 0L) "$name today"
-                else "$days ${if (days == 1L) "day" else "days"} to $name"
+    }
+}
+
+/* ---------------- today card ---------------- */
+
+/** Daily goal, level progress and upcoming exams, grouped in one calm card. */
+@Composable
+private fun TodayCard() {
+    val p = pal()
+    val today = Model.todaySec()
+    val gd = Model.S.goal.d
+    val goalSec = (gd * 3600).toLong()
+    val level = Model.levelOf(Model.S.xp)
+    val (inLevel, levelNeed) = Model.levelProgress()
+    val exams = Model.upcomingExams().take(3)
+    AppCard {
+        H2("Today")
+        // focus goal
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.TrackChanges, contentDescription = null, tint = p.a, modifier = Modifier.size(18.dp))
+            Text(
+                "Focus",
+                style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 15.sp),
+                color = p.ink,
+                modifier = Modifier.weight(1f).padding(start = 10.dp)
             )
+            Mut(hm(today) + (if (gd > 0) " / " + hm(goalSec) else ""), size = 13.sp)
+        }
+        if (gd > 0 && goalSec > 0) {
+            Bar(today.toFloat() / goalSec, height = 6.dp, modifier = Modifier.padding(top = 10.dp))
+        }
+        Spacer(Modifier.height(12.dp))
+        ItemDivider()
+        // level
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
+            Icon(Icons.Rounded.Star, contentDescription = null, tint = p.a, modifier = Modifier.size(18.dp))
+            Text(
+                "Level $level",
+                style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 15.sp),
+                color = p.ink,
+                modifier = Modifier.weight(1f).padding(start = 10.dp)
+            )
+            Mut("$inLevel / $levelNeed XP", size = 13.sp)
+        }
+        Bar(
+            if (levelNeed > 0) inLevel.toFloat() / levelNeed else 0f,
+            height = 6.dp,
+            modifier = Modifier.padding(top = 10.dp)
+        )
+        // exams
+        if (exams.isNotEmpty()) {
+            Spacer(Modifier.height(12.dp))
+            ItemDivider()
+            exams.forEach { (exam, days) ->
+                val name = exam.n.ifBlank { "Exam" }
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
+                    Icon(Icons.Rounded.CalendarToday, contentDescription = null, tint = p.a, modifier = Modifier.size(18.dp))
+                    Text(
+                        name,
+                        style = TextStyle(fontFamily = Sora, fontWeight = FontWeight.Normal, fontSize = 15.sp),
+                        color = p.ink,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f).padding(start = 10.dp)
+                    )
+                    Mut(
+                        if (days == 0L) "Today" else "$days ${if (days == 1L) "day" else "days"}",
+                        size = 13.sp
+                    )
+                }
+            }
         }
     }
 }

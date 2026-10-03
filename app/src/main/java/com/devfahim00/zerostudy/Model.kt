@@ -2,7 +2,9 @@ package com.devfahim00.zerostudy
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioFormat
 import android.media.AudioManager
+import android.media.AudioTrack
 import android.media.MediaPlayer
 import android.os.Build
 import android.os.Handler
@@ -929,8 +931,9 @@ object Model {
 
     private const val AMB_VOLUME = 0.6f
 
-    private var ambientPlayer: MediaPlayer? = null
+    private var ambientTrack: AudioTrack? = null
     private var ambientId: String? = null
+    private val ambientCache = HashMap<Int, Triple<ByteArray, Int, Int>>() // res -> (pcm, sampleRate, channels)
     private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
     private val endPreview = Runnable {
         if (ambientId?.startsWith("preview:") == true) {
@@ -948,19 +951,68 @@ object Model {
         if (want != null) startAmbient(want)
     }
 
+    /** Reads a 16-bit PCM WAV from res/raw once and keeps the raw samples in memory. */
+    private fun loadPcm(res: Int): Triple<ByteArray, Int, Int>? {
+        ambientCache[res]?.let { return it }
+        val b = appCtx.resources.openRawResource(res).use { it.readBytes() }
+        if (b.size < 44) return null
+        fun le16(o: Int) = (b[o].toInt() and 0xFF) or ((b[o + 1].toInt() and 0xFF) shl 8)
+        fun le32(o: Int) = le16(o) or (le16(o + 2) shl 16)
+        var pos = 12
+        var channels = 1
+        var rate = 22050
+        while (pos + 8 <= b.size) {
+            val size = le32(pos + 4)
+            when (String(b, pos, 4, Charsets.US_ASCII)) {
+                "fmt " -> {
+                    channels = le16(pos + 10)
+                    rate = le32(pos + 12)
+                }
+                "data" -> {
+                    val len = minOf(size.toLong() and 0xFFFFFFFFL, (b.size - pos - 8).toLong()).toInt()
+                    val out = Triple(b.copyOfRange(pos + 8, pos + 8 + len), rate, channels)
+                    ambientCache[res] = out
+                    return out
+                }
+            }
+            pos += 8 + size + (size and 1)
+        }
+        return null
+    }
+
+    /**
+     * The loop lives in one static AudioTrack buffer that the audio hardware repeats by itself,
+     * so there is no gap or click at the restart point (MediaPlayer re-seeks and leaves a pause).
+     */
     private fun startAmbient(id: String) {
         val res = AmbientSounds.byId(id).res
         if (res == 0) return
         try {
-            val attrs = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+            val (pcm, rate, channels) = loadPcm(res) ?: return
+            val mask = if (channels == 2) AudioFormat.CHANNEL_OUT_STEREO else AudioFormat.CHANNEL_OUT_MONO
+            val frames = pcm.size / (2 * channels)
+            val track = AudioTrack.Builder()
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(rate)
+                        .setChannelMask(mask)
+                        .build()
+                )
+                .setBufferSizeInBytes(pcm.size)
+                .setTransferMode(AudioTrack.MODE_STATIC)
                 .build()
-            val mp = MediaPlayer.create(appCtx, res, attrs, AudioManager.AUDIO_SESSION_ID_GENERATE) ?: return
-            mp.isLooping = true
-            mp.setVolume(AMB_VOLUME, AMB_VOLUME)
-            mp.start()
-            ambientPlayer = mp
+            track.write(pcm, 0, pcm.size)
+            track.setLoopPoints(0, frames, -1)
+            track.setVolume(AMB_VOLUME)
+            track.play()
+            ambientTrack = track
             ambientId = id
         } catch (_: Exception) {
             stopAmbient()
@@ -970,14 +1022,14 @@ object Model {
     private fun stopAmbient() {
         mainHandler.removeCallbacks(endPreview)
         try {
-            ambientPlayer?.stop()
+            ambientTrack?.stop()
         } catch (_: Exception) {
         }
         try {
-            ambientPlayer?.release()
+            ambientTrack?.release()
         } catch (_: Exception) {
         }
-        ambientPlayer = null
+        ambientTrack = null
         ambientId = null
     }
 
@@ -989,7 +1041,7 @@ object Model {
             return
         }
         startAmbient(id)
-        if (ambientPlayer != null) {
+        if (ambientTrack != null) {
             ambientId = "preview:$id"
             mainHandler.postDelayed(endPreview, 5000)
         }
