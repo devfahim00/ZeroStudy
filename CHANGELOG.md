@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.3.3] - 2026-10-03
+
+### Changed
+- **Plan tab: focus time removed.** The top card now has just two boxes of equal size: Revisions due today and your Level, with the level progress bar inside the Level box. The focus time is still on the home screen.
+
 ## [1.3.2] - 2026-10-03
 
 ### Changed

@@ -7,6 +7,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -46,9 +48,8 @@ import com.devfahim00.zerostudy.Model
 import com.devfahim00.zerostudy.PlanItem
 import com.devfahim00.zerostudy.fmtDate
 import com.devfahim00.zerostudy.fmtWeekday
-import com.devfahim00.zerostudy.hm
 
-/** Today's plan: a small checklist for the day, plus the revisions that are due and the daily goal. */
+/** Today's plan: a small checklist for the day, plus the revisions that are due and your level. */
 @Composable
 fun PlanScreen() {
     val p = pal()
@@ -57,8 +58,6 @@ fun PlanScreen() {
     val carried = Model.planCarried()
     val doneN = today.count { it.done }
     val dueNow = Model.dueNow().take(Model.revCap())
-    val focusSec = Model.todaySec()
-    val goalSec = (Model.S.goal.d * 3600).toLong()
     val level = Model.levelOf(Model.S.xp)
     val (inLevel, levelNeed) = Model.levelProgress()
 
@@ -86,21 +85,21 @@ fun PlanScreen() {
                 )
                 Bar(if (today.isEmpty()) 0f else doneN.toFloat() / today.size, color = p.ok)
                 Spacer(Modifier.height(14.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatBox(
-                        "Focus", hm(focusSec),
-                        if (goalSec > 0) "of " + hm(goalSec) else "no goal set",
-                        Modifier.weight(1f)
-                    )
+                Row(
+                    Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     StatBox(
                         "Revisions", dueNow.size.toString(),
-                        if (dueNow.isEmpty()) "none due" else "due today",
-                        Modifier.weight(1f)
+                        if (dueNow.isEmpty()) "none due today" else "due today",
+                        Modifier.weight(1f).fillMaxHeight()
                     )
-                    StatBox("Level", level.toString(), "$inLevel / $levelNeed XP", Modifier.weight(1f))
+                    StatBox(
+                        "Level", level.toString(), "$inLevel / $levelNeed XP",
+                        Modifier.weight(1f).fillMaxHeight(),
+                        progress = if (levelNeed > 0) inLevel.toFloat() / levelNeed else 0f
+                    )
                 }
-                Spacer(Modifier.height(12.dp))
-                Bar(if (levelNeed > 0) inLevel.toFloat() / levelNeed else 0f, height = 6.dp)
             }
 
             AddTaskCard()
@@ -269,7 +268,7 @@ private fun TickBox(on: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun StatBox(label: String, value: String, sub: String, modifier: Modifier = Modifier) {
+private fun StatBox(label: String, value: String, sub: String, modifier: Modifier = Modifier, progress: Float? = null) {
     val p = pal()
     Column(
         modifier
@@ -285,5 +284,9 @@ private fun StatBox(label: String, value: String, sub: String, modifier: Modifie
             modifier = Modifier.padding(top = 2.dp)
         )
         Mut(sub, size = 11.sp)
+        if (progress != null) {
+            Spacer(Modifier.weight(1f))
+            Bar(progress, height = 5.dp, modifier = Modifier.padding(top = 10.dp))
+        }
     }
 }
