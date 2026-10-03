@@ -95,6 +95,7 @@ fun HomeScreen() {
         // On normal phones everything fits in one screen (the timer takes the leftover space).
         // Only on very short screens does the page fall back to scrolling.
         val fits = maxHeight >= 600.dp
+        val tall = maxHeight >= 720.dp
         val base = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)
         Column(
             if (fits) base else base.verticalScroll(rememberScrollState()),
@@ -114,7 +115,7 @@ fun HomeScreen() {
                 Spacer(Modifier.height(10.dp))
                 TodayCard()
                 Spacer(Modifier.height(8.dp))
-                RevisionCard(if (maxHeight >= 720.dp) 2 else 1)
+                RevisionCard(if (tall) 2 else 1)
             }
         }
     }
@@ -382,7 +383,7 @@ private fun TimerCenter(stage: Dp) {
     val run = Model.S.tm.run
     val accent = if (focus) p.a else p.ok
     val sub = if (focus) {
-        (if (run) "Focus" else if (e > 0) "Paused" else "Ready") + (if (t > 0) " · ${Model.S.cfg.f} min" else " · stopwatch")
+        if (run || e > 0) ((if (run) "Focus" else "Paused") + (if (t > 0) " · ${Model.S.cfg.f} min" else " · stopwatch")) else (if (t > 0) "${Model.S.cfg.f} min" else "Stopwatch")
     } else {
         (if (run) "Break" else "Break paused") + " · ${Model.S.cfg.b} min"
     }
