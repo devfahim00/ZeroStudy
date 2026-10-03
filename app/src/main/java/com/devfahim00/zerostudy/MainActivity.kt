@@ -38,9 +38,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
@@ -48,6 +50,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -62,6 +65,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -72,6 +76,8 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.devfahim00.zerostudy.ui.FullscreenTimer
 import com.devfahim00.zerostudy.ui.HomeScreen
+import com.devfahim00.zerostudy.ui.LevelUpOverlay
+import com.devfahim00.zerostudy.ui.PlanScreen
 import com.devfahim00.zerostudy.ui.RevisionsScreen
 import com.devfahim00.zerostudy.ui.SettingsScreen
 import com.devfahim00.zerostudy.ui.StatsScreen
@@ -90,6 +96,7 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         Model.appVisible = true
         Model.syncService() // resumes the notification if a timer is active
+        Updater.checkOnOpen(applicationContext) // silent: only a newer release shows a dialog
     }
 
     override fun onStop() {
@@ -171,6 +178,7 @@ fun App() {
 
     val items = listOf(
         NavItem("home", "Home", Icons.Rounded.Home),
+        NavItem("plan", "Plan", Icons.Rounded.CheckCircle),
         NavItem("revisions", "Revisions", Icons.Rounded.CalendarMonth),
         NavItem("stats", "Stats", Icons.Rounded.BarChart),
         NavItem("subjects", "Subjects", Icons.Rounded.MenuBook),
@@ -204,6 +212,7 @@ fun App() {
                 key(tab) {
                     when (tab) {
                         "home" -> HomeScreen()
+                        "plan" -> PlanScreen()
                         "revisions" -> RevisionsScreen()
                         "stats" -> StatsScreen()
                         "subjects" -> SubjectsScreen()
@@ -215,7 +224,51 @@ fun App() {
         if (Model.fullscreen) {
             FullscreenTimer()
         }
+        Model.levelUp?.let { LevelUpOverlay(it) }
     }
+
+    UpdatePrompt()
+}
+
+/** Shown only when the silent check on app open found a newer release. */
+@Composable
+private fun UpdatePrompt() {
+    val update = Updater.prompt ?: return
+    val p = pal()
+    val ctx = LocalContext.current
+    val notes = update.notes.lines()
+        .map { it.trim().replace("**", "") }
+        .filter { it.isNotEmpty() && !it.startsWith("#") }
+        .take(4)
+        .joinToString("\n")
+        .take(280)
+    AlertDialog(
+        onDismissRequest = { Updater.dismissPrompt() },
+        containerColor = p.card,
+        title = {
+            Text(
+                "Update available",
+                style = TextStyle(fontFamily = com.devfahim00.zerostudy.ui.Sora, fontWeight = FontWeight.SemiBold, fontSize = 18.sp),
+                color = p.ink
+            )
+        },
+        text = {
+            Text(
+                "ZeroStudy ${update.version} is ready to download." + (if (notes.isNotEmpty()) "\n\n$notes" else ""),
+                style = TextStyle(fontFamily = com.devfahim00.zerostudy.ui.Sora, fontWeight = FontWeight.Normal, fontSize = 14.sp),
+                color = p.mut
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                Updater.open(ctx, update.apkUrl ?: update.page)
+                Updater.dismissPrompt()
+            }) { Text("Download", color = p.a) }
+        },
+        dismissButton = {
+            TextButton(onClick = { Updater.dismissPrompt() }) { Text("Later", color = p.mut) }
+        }
+    )
 }
 
 @Composable
@@ -235,7 +288,7 @@ private fun BottomNav(items: List<NavItem>, current: String, onTab: (String) -> 
                 )
             }
     ) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp)) {
             items.forEach { item ->
                 val on = item.id == current
                 Column(
@@ -243,7 +296,7 @@ private fun BottomNav(items: List<NavItem>, current: String, onTab: (String) -> 
                     verticalArrangement = Arrangement.Center,
                     modifier = Modifier
                         .weight(1f)
-                        .padding(horizontal = 3.dp)
+                        .padding(horizontal = 2.dp)
                         .background(if (on) p.card else androidx.compose.ui.graphics.Color.Transparent, androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
                         .clickable { onTab(item.id) }
                         .padding(vertical = 12.dp)
@@ -275,8 +328,10 @@ private fun BottomNav(items: List<NavItem>, current: String, onTab: (String) -> 
                     Spacer(Modifier.height(2.dp))
                     Text(
                         item.label,
-                        style = TextStyle(fontFamily = com.devfahim00.zerostudy.ui.Sora, fontWeight = FontWeight.Normal, fontSize = 11.sp),
-                        color = if (on) p.ink else p.mut
+                        style = TextStyle(fontFamily = com.devfahim00.zerostudy.ui.Sora, fontWeight = FontWeight.Normal, fontSize = 10.sp),
+                        color = if (on) p.ink else p.mut,
+                        maxLines = 1,
+                        softWrap = false
                     )
                     Spacer(Modifier.height(2.dp))
                     Box(

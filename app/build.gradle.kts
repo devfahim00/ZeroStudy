@@ -11,8 +11,8 @@ android {
         applicationId = "com.devfahim00.zerostudy"
         minSdk = 26
         targetSdk = 34
-        versionCode = 6
-        versionName = "1.2.2"
+        versionCode = 7
+        versionName = "1.3.0"
     }
 
     // Release signing: values come from GitHub Actions secrets (env vars) or local gradle properties.

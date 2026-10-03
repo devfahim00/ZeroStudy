@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.3.0] - 2026-10-03
+
+### New
+- **Plan tab (Today's plan).** A new page with your checklist for the day. Add tasks (optionally tagged with a subject), tick them off, and see them move to the bottom when done. It also shows today's focus time against your goal, the revisions that are due today (with Done / Forgot buttons) and your level. Unfinished tasks from earlier days show up under "Carried over" and count for today when you tick them.
+- **XP and levels.** You earn 1 XP for every minute of focus, 20 XP for completing a chapter (once per chapter), and 10 XP for every revision you mark Done, plus 15 XP extra when a chapter is fully mastered. Your level and progress show on the home screen and the Plan tab, and a short level-up animation plays when you reach a new level. XP for everything you already did in earlier versions is added automatically the first time you open this version.
+- **Ambient sound while you focus.** Choose **Rain** or **Lo-fi** in Settings → Ambient sound. The loop plays only while a focus session is running, pauses with the timer and stops for breaks, even with the app in the background. It is stored in the app, so it works offline. The sound pill on the home screen switches Off / Rain / Lo-fi in one tap.
+- **Silent update check.** Every time you open the app it quietly checks GitHub for a newer release. Nothing is shown when you are up to date or offline. When a new version exists, a small dialog offers to download it.
+
+### Changed
+- The bottom bar has a sixth tab (Plan), so the labels are slightly smaller.
+
 ## [1.2.2] - 2026-10-02
 
 ### Fixed

@@ -23,3 +23,16 @@ object AlertSounds {
 
     fun byId(id: String?): AlertSound = all.firstOrNull { it.id == id } ?: all.first { it.id == DEFAULT }
 }
+
+/** A long, seamless background loop (res/raw) that plays while a focus session runs. */
+data class AmbientSound(val id: String, val name: String, val hint: String, val res: Int)
+
+object AmbientSounds {
+    val all = listOf(
+        AmbientSound("off", "Off", "No background sound", 0),
+        AmbientSound("rain", "Rain", "Soft rain with distant drops", R.raw.ambient_rain),
+        AmbientSound("lofi", "Lo-fi", "Mellow keys, bass and a slow beat", R.raw.ambient_lofi)
+    )
+
+    fun byId(id: String?): AmbientSound = all.firstOrNull { it.id == id } ?: all.first()
+}

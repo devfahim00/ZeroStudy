@@ -15,6 +15,7 @@ object Updater {
 
     private const val API = "https://api.github.com/repos/devfahim00/ZeroStudy/releases/latest"
     const val RELEASES_PAGE = "https://github.com/devfahim00/ZeroStudy/releases"
+    private const val AUTO_CHECK_GAP_MS = 5 * 60_000L
 
     sealed class State {
         object Idle : State()
@@ -33,45 +34,79 @@ object Updater {
         "1.0.0"
     }
 
+    /** Asks GitHub for the latest release and compares it with [current]. Runs on a worker thread. */
+    private fun query(current: String): State = try {
+        val conn = URL(API).openConnection() as HttpURLConnection
+        conn.connectTimeout = 10_000
+        conn.readTimeout = 10_000
+        conn.setRequestProperty("Accept", "application/vnd.github+json")
+        conn.setRequestProperty("User-Agent", "ZeroStudy-Android")
+        when (val code = conn.responseCode) {
+            200 -> {
+                val body = conn.inputStream.bufferedReader().use { it.readText() }
+                val o = JsonParser.parseString(body).asJsonObject
+                val tag = o.get("tag_name").asString
+                if (isNewer(tag, current)) {
+                    var apk: String? = null
+                    o.getAsJsonArray("assets")?.forEach { a ->
+                        val ao = a.asJsonObject
+                        if (apk == null && ao.get("name").asString.endsWith(".apk")) {
+                            apk = ao.get("browser_download_url").asString
+                        }
+                    }
+                    State.Available(
+                        version = tag.trimStart('v', 'V'),
+                        apkUrl = apk,
+                        page = o.get("html_url").asString,
+                        notes = o.get("body")?.takeIf { !it.isJsonNull }?.asString ?: ""
+                    )
+                } else State.UpToDate
+            }
+            404 -> State.UpToDate // no release published yet
+            else -> State.Failed("GitHub returned $code")
+        }
+    } catch (e: Exception) {
+        State.Failed("No internet connection")
+    }
+
+    /** Manual check from Settings: shows progress and any error. */
     fun check(ctx: Context) {
         if (state is State.Checking) return
         state = State.Checking
         val current = currentVersion(ctx)
+        Thread { state = query(current) }.start()
+    }
+
+    /** Set when the silent check on app open finds a newer version; the UI shows a dialog for it. */
+    var prompt: State.Available? by mutableStateOf(null)
+        private set
+
+    private var lastAutoCheck = 0L
+
+    /**
+     * Silent background check, called whenever the app is opened. Nothing is shown while it runs,
+     * and nothing at all when the app is up to date or the phone is offline. Only a newer
+     * release raises [prompt]. Opening the app again within 5 minutes does not hit GitHub again.
+     */
+    fun checkOnOpen(ctx: Context) {
+        val now = System.currentTimeMillis()
+        if (now - lastAutoCheck < AUTO_CHECK_GAP_MS) return
+        if (state is State.Checking) return
+        lastAutoCheck = now
+        val current = currentVersion(ctx)
         Thread {
-            state = try {
-                val conn = URL(API).openConnection() as HttpURLConnection
-                conn.connectTimeout = 10_000
-                conn.readTimeout = 10_000
-                conn.setRequestProperty("Accept", "application/vnd.github+json")
-                conn.setRequestProperty("User-Agent", "ZeroStudy-Android")
-                when (val code = conn.responseCode) {
-                    200 -> {
-                        val body = conn.inputStream.bufferedReader().use { it.readText() }
-                        val o = JsonParser.parseString(body).asJsonObject
-                        val tag = o.get("tag_name").asString
-                        if (isNewer(tag, current)) {
-                            var apk: String? = null
-                            o.getAsJsonArray("assets")?.forEach { a ->
-                                val ao = a.asJsonObject
-                                if (apk == null && ao.get("name").asString.endsWith(".apk")) {
-                                    apk = ao.get("browser_download_url").asString
-                                }
-                            }
-                            State.Available(
-                                version = tag.trimStart('v', 'V'),
-                                apkUrl = apk,
-                                page = o.get("html_url").asString,
-                                notes = o.get("body")?.takeIf { !it.isJsonNull }?.asString ?: ""
-                            )
-                        } else State.UpToDate
-                    }
-                    404 -> State.UpToDate // no release published yet
-                    else -> State.Failed("GitHub returned $code")
-                }
-            } catch (e: Exception) {
-                State.Failed("No internet connection")
+            val r = query(current)
+            if (r is State.Available) {
+                state = r
+                prompt = r
+            } else if (r is State.UpToDate) {
+                state = r
             }
         }.start()
+    }
+
+    fun dismissPrompt() {
+        prompt = null
     }
 
     fun dismiss() {

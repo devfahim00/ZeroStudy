@@ -5,6 +5,8 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -27,7 +29,8 @@ data class Chapter(
     val dif: String = "",
     val note: String = "",
     val nx: Long = 0,        // earliest allowed next revision (used to spread backlog chapters)
-    val bk: Boolean = false  // marked as "studied earlier" when set up
+    val bk: Boolean = false, // marked as "studied earlier" when set up
+    val xg: Boolean = false  // XP for completing this chapter was already given (no farming by toggling)
 )
 
 data class Subject(
@@ -58,6 +61,15 @@ data class TimerState(val run: Boolean = false, val start: Long = 0, val acc: Lo
 
 data class Exam(val id: String = "", val n: String = "", val d: String = "")
 
+/** One task in Today's plan. [d] is the ISO date it was planned for, [sub] an optional subject id. */
+data class PlanItem(
+    val id: String = "",
+    val t: String = "",
+    val sub: String = "",
+    val d: String = "",
+    val done: Boolean = false
+)
+
 data class AppState(
     val subs: List<Subject> = emptyList(),
     val ses: List<Session> = emptyList(),
@@ -72,7 +84,10 @@ data class AppState(
     val theme: String = "dark",
     val sc: String = "",
     val snd: String = "sonar", // id of the chosen alert sound (see AlertSounds)
-    val isl: String = "compact" // Hyper Island style: compact | off
+    val isl: String = "compact", // Hyper Island style: compact | off
+    val xp: Long = 0, // total XP, the level is derived from it
+    val amb: String = "off", // ambient sound while focusing: off | rain | lofi
+    val plan: List<PlanItem> = emptyList()
 )
 
 /* ---------------- model ---------------- */
@@ -103,6 +118,7 @@ object Model {
     /** Starts / refreshes / stops the foreground timer notification to match the timer state. */
     fun syncService() {
         if (!::appCtx.isInitialized) return
+        syncAmbient()
         try {
             TimerService.sync(appCtx)
         } catch (_: Exception) {
@@ -121,6 +137,8 @@ object Model {
             }
         } else AppState()
         migrateDefaultSound()
+        migrateXp()
+        prunePlan()
         rebalanceFuture()
     }
 
@@ -160,7 +178,10 @@ object Model {
             theme = if (s.theme.isNullOrBlank()) "dark" else s.theme,
             sc = s.sc ?: "",
             snd = AlertSounds.byId(s.snd).id,
-            isl = if (s.isl == "off") "off" else "compact" // the old "icon" style was removed
+            isl = if (s.isl == "off") "off" else "compact", // the old "icon" style was removed
+            xp = if (s.xp < 0L) 0L else s.xp,
+            amb = if (s.amb == "rain" || s.amb == "lofi") s.amb else "off",
+            plan = s.plan ?: emptyList()
         )
     }
 
@@ -311,12 +332,14 @@ object Model {
         val wasFocus = S.ph == "f"
         if (S.ph == "f") {
             S = S.copy(ses = S.ses + Session(t = nowMs - over, d = (t / 1000).toInt(), s = S.sel.toList(), c = effSc()))
+            val gained = focusXp(t / 1000)
+            awardXp(gained)
             if (S.cfg.b > 0) {
                 S = S.copy(ph = "b", tm = TimerState(run = true, start = nowMs - over, acc = 0))
-                toast("Session done. Break started")
+                toast("Session done. Break started" + xpTag(gained))
             } else {
                 resetTm()
-                toast("Session done")
+                toast("Session done" + xpTag(gained))
             }
         } else {
             S = S.copy(ph = "f")
@@ -374,10 +397,12 @@ object Model {
                 c = effSc()
             )
         )
+        val gained = focusXp(Math.round(e / 1000.0))
+        awardXp(gained)
         resetTm()
         save()
         syncService()
-        toast("Saved " + hm(e / 1000))
+        toast("Saved " + hm(e / 1000) + xpTag(gained))
     }
 
     /** Subject/chapter can't be changed once a focus session has started (running or paused). */
@@ -597,9 +622,11 @@ object Model {
         }
         val nchapters = S.subs[si].ch.toMutableList().also { it[ci] = nc }
         S = S.copy(subs = S.subs.toMutableList().also { it[si] = S.subs[si].copy(ch = nchapters) })
+        val gain = if (!ok) 0L else if (nc.rv >= S.cfg.rv.size) XP_REVISION + XP_MASTER else XP_REVISION
+        awardXp(gain)
         toast(
             if (ok) {
-                if (nc.rv >= S.cfg.rv.size) "Chapter mastered" else "Next revision " + whenStr(dueOf(nc) ?: nowMs)
+                if (nc.rv >= S.cfg.rv.size) "Chapter mastered" + xpTag(gain) else "Next revision " + whenStr(dueOf(nc) ?: nowMs) + xpTag(gain)
             } else "Cycle restarted · " + whenStr(dueOf(nc) ?: nowMs)
         )
         save()
@@ -677,9 +704,11 @@ object Model {
         } else {
             val nowMs = System.currentTimeMillis()
             val day = placeDay(loadByDay(excludeChapter = chId), S.cfg.rv.first().toLong())
-            c.copy(done = nowMs, rv = 0, last = 0, nx = addDays(nowMs, day), bk = false)
+            c.copy(done = nowMs, rv = 0, last = 0, nx = addDays(nowMs, day), bk = false, xg = true)
         }
-        if (c.done > 0) toast("Unmarked") else toast("Chapter complete · first revision " + whenStr(dueOf(nc) ?: 0L))
+        val gain = if (c.done <= 0 && !c.xg) XP_CHAPTER else 0L
+        awardXp(gain)
+        if (c.done > 0) toast("Unmarked") else toast("Chapter complete · first revision " + whenStr(dueOf(nc) ?: 0L) + xpTag(gain))
         S = S.copy(subs = S.subs.toMutableList().also { sub ->
             sub[si] = sub[si].copy(ch = sub[si].ch.toMutableList().also { it[ci] = nc })
         })
@@ -834,4 +863,215 @@ object Model {
     fun upcomingExams(): List<Pair<Exam, Long>> =
         S.exams.mapNotNull { e -> daysUntil(e.d)?.takeIf { it >= 0 }?.let { e to it } }
             .sortedBy { it.second }
+
+    /* ---------------- XP & levels ---------------- */
+
+    private const val XP_CHAPTER = 20L   // completing a chapter (once per chapter)
+    private const val XP_REVISION = 10L  // a revision marked Done
+    private const val XP_MASTER = 15L    // extra for finishing the last revision of a chapter
+    private const val XP_STEP = 60.0     // level n starts at XP_STEP * (n - 1)^2
+
+    /** Set to the new level when the player levels up; the UI shows a short animation and clears it. */
+    var levelUp by mutableStateOf<Int?>(null)
+        private set
+
+    fun dismissLevelUp() {
+        levelUp = null
+    }
+
+    fun levelOf(xp: Long): Int = Math.sqrt(xp.coerceAtLeast(0L) / XP_STEP).toInt() + 1
+
+    fun levelStartXp(level: Int): Long = (XP_STEP * (level - 1) * (level - 1)).toLong()
+
+    /** XP earned inside the current level (first) and the XP the whole level needs (second). */
+    fun levelProgress(): Pair<Long, Long> {
+        val lv = levelOf(S.xp)
+        val start = levelStartXp(lv)
+        return (S.xp - start) to (levelStartXp(lv + 1) - start)
+    }
+
+    /** 1 XP per full minute of focus. */
+    private fun focusXp(sec: Long): Long = sec / 60
+
+    private fun xpTag(n: Long): String = if (n > 0) " · +$n XP" else ""
+
+    /** Adds XP (the caller saves). Starts the level-up animation when a new level is reached. */
+    private fun awardXp(n: Long) {
+        if (n <= 0L) return
+        val before = levelOf(S.xp)
+        S = S.copy(xp = S.xp + n)
+        val after = levelOf(S.xp)
+        if (after > before) {
+            levelUp = after
+            playSound("success")
+        }
+    }
+
+    /** One-time: gives XP for everything already done before XP existed (v1.3.0). */
+    private fun migrateXp() {
+        val prefs = appCtx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (prefs.getBoolean("xp_backfilled", false)) return
+        val minutes = S.ses.sumOf { it.d.toLong() / 60L }
+        val chapters = S.subs.sumOf { sub ->
+            sub.ch.sumOf { c ->
+                (if (c.done > 0 && !c.bk) XP_CHAPTER else 0L) + c.rv.toLong() * XP_REVISION
+            }
+        }
+        S = S.copy(
+            xp = S.xp + minutes + chapters,
+            subs = S.subs.map { sub -> sub.copy(ch = sub.ch.map { it.copy(xg = it.xg || (it.done > 0 && !it.bk)) }) }
+        )
+        prefs.edit().putBoolean("xp_backfilled", true).apply()
+        save()
+    }
+
+    /* ---------------- ambient sound ---------------- */
+
+    private const val AMB_VOLUME = 0.6f
+
+    private var ambientPlayer: MediaPlayer? = null
+    private var ambientId: String? = null
+    private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
+    private val endPreview = Runnable {
+        if (ambientId?.startsWith("preview:") == true) {
+            stopAmbient()
+            syncAmbient()
+        }
+    }
+
+    /** Plays the chosen loop while a focus session is running; stops on pause, break or stop. */
+    fun syncAmbient() {
+        if (!::appCtx.isInitialized) return
+        val want = if (S.amb != "off" && S.ph == "f" && S.tm.run) S.amb else null
+        if (want == ambientId) return
+        stopAmbient()
+        if (want != null) startAmbient(want)
+    }
+
+    private fun startAmbient(id: String) {
+        val res = AmbientSounds.byId(id).res
+        if (res == 0) return
+        try {
+            val attrs = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build()
+            val mp = MediaPlayer.create(appCtx, res, attrs, AudioManager.AUDIO_SESSION_ID_GENERATE) ?: return
+            mp.isLooping = true
+            mp.setVolume(AMB_VOLUME, AMB_VOLUME)
+            mp.start()
+            ambientPlayer = mp
+            ambientId = id
+        } catch (_: Exception) {
+            stopAmbient()
+        }
+    }
+
+    private fun stopAmbient() {
+        mainHandler.removeCallbacks(endPreview)
+        try {
+            ambientPlayer?.stop()
+        } catch (_: Exception) {
+        }
+        try {
+            ambientPlayer?.release()
+        } catch (_: Exception) {
+        }
+        ambientPlayer = null
+        ambientId = null
+    }
+
+    /** Plays a few seconds of a loop so it can be heard in Settings. */
+    fun previewAmbient(id: String) {
+        stopAmbient()
+        if (id == "off") {
+            syncAmbient()
+            return
+        }
+        startAmbient(id)
+        if (ambientPlayer != null) {
+            ambientId = "preview:$id"
+            mainHandler.postDelayed(endPreview, 5000)
+        }
+    }
+
+    fun setAmbient(id: String) {
+        S = S.copy(amb = id)
+        save()
+        previewAmbient(id)
+    }
+
+    /** Quick toggle on the home screen: off -> rain -> lo-fi -> off. */
+    fun cycleAmbient() {
+        val order = listOf("off", "rain", "lofi")
+        val next = order[(order.indexOf(S.amb) + 1) % order.size]
+        S = S.copy(amb = next)
+        save()
+        syncAmbient()
+        toast(if (next == "off") "Ambient sound off" else "Ambient: " + AmbientSounds.byId(next).name + " · plays while you focus")
+    }
+
+    /* ---------------- today's plan ---------------- */
+
+    private fun todayIso(): String = dkey(System.currentTimeMillis()).toString()
+
+    fun planToday(): List<PlanItem> {
+        val t = todayIso()
+        return S.plan.filter { it.d == t }
+    }
+
+    /** Unfinished tasks from earlier days. */
+    fun planCarried(): List<PlanItem> {
+        val t = todayIso()
+        return S.plan.filter { it.d < t && !it.done }
+    }
+
+    fun addPlan(text: String, subId: String): Boolean {
+        val t = text.trim().take(80)
+        if (t.isEmpty()) return false
+        if (planToday().any { it.t.equals(t, ignoreCase = true) }) {
+            toast("Already in today's plan")
+            return false
+        }
+        S = S.copy(
+            plan = S.plan + PlanItem(
+                id = "p" + System.currentTimeMillis().toString(36) + (0..999).random(),
+                t = t,
+                sub = subId,
+                d = todayIso()
+            )
+        )
+        save()
+        return true
+    }
+
+    /** Ticks / unticks a task. Ticking an old unfinished task moves it into today. */
+    fun togglePlan(id: String) {
+        val t = todayIso()
+        S = S.copy(plan = S.plan.map { if (it.id == id) it.copy(done = !it.done, d = t) else it })
+        save()
+    }
+
+    fun removePlan(id: String) {
+        S = S.copy(plan = S.plan.filter { it.id != id })
+        save()
+    }
+
+    /** Drops finished tasks after 2 days and unfinished ones after 2 weeks. */
+    private fun prunePlan() {
+        val today = dkey(System.currentTimeMillis())
+        val keep = S.plan.filter {
+            val d = try {
+                LocalDate.parse(it.d)
+            } catch (e: Exception) {
+                return@filter false
+            }
+            val age = ChronoUnit.DAYS.between(d, today)
+            if (it.done) age <= 2 else age <= 14
+        }
+        if (keep.size != S.plan.size) {
+            S = S.copy(plan = keep)
+            save()
+        }
+    }
 }

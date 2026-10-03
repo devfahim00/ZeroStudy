@@ -11,9 +11,12 @@ Native port of the *Focus – Study Tracker* web app — same UI, same features.
 - **Spaced-repetition revisions** — chapters come back for revision on a configurable schedule (default 1, 3, 7, 15, 30 days); *Done* pushes the next revision out, *Forgot* restarts the cycle
 - **Stats** — daily / weekly / monthly bar charts, subject comparison, today's sessions, a 22-week study heatmap, best day/week records and streaks
 - **Goals** — daily & weekly study goals with live progress
+- **Today's plan** — a daily checklist with the day's focus goal and due revisions in one place
+- **XP & levels** — earn XP for focus minutes, chapters and revisions, with a level-up animation
+- **Ambient sound** — rain or lo-fi loop that plays only while you focus (offline)
 - **Exam countdown** — name a date and get a countdown on the home screen
 - **12 loud alert sounds** — short 1-2 sec alerts, pick your favourite in Settings
-- **Update checker** — checks this repo's GitHub releases from Settings
+- **Update checker** — checks this repo's GitHub releases from Settings, and silently on every app open
 - **Dark & light themes**
 - Everything is stored locally on your device — no account, no network.
 

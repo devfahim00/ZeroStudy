@@ -96,7 +96,7 @@ fun Mut(text: String, modifier: Modifier = Modifier, size: TextUnit = 13.sp, col
 /* ---------- pill / chip ---------- */
 
 @Composable
-fun Pill(icon: ImageVector, text: String) {
+fun Pill(icon: ImageVector, text: String, onClick: (() -> Unit)? = null) {
     val p = pal()
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -104,6 +104,7 @@ fun Pill(icon: ImageVector, text: String) {
         modifier = Modifier
             .background(p.card, RoundedCornerShape(99.dp))
             .border(1.dp, p.line, RoundedCornerShape(99.dp))
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
             .padding(horizontal = 14.dp, vertical = 7.dp)
     ) {
         Icon(icon, contentDescription = null, tint = p.a, modifier = Modifier.size(16.dp))

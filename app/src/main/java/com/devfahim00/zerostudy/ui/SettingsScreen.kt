@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Backup
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SystemUpdate
@@ -67,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devfahim00.zerostudy.Exam
 import com.devfahim00.zerostudy.AlertSounds
+import com.devfahim00.zerostudy.AmbientSounds
 import com.devfahim00.zerostudy.Model
 import com.devfahim00.zerostudy.Updater
 import com.devfahim00.zerostudy.HyperIsland
@@ -121,6 +123,10 @@ fun SettingsScreen() {
                 "sound" -> {
                     PageHeader("Alert sound") { page = "" }
                     SoundPage()
+                }
+                "ambient" -> {
+                    PageHeader("Ambient sound") { page = "" }
+                    AmbientPage()
                 }
                 else -> {
                     SettingsMenu { page = it }
@@ -199,6 +205,11 @@ private fun SettingsMenu(onOpen: (String) -> Unit) {
             "sound", "Alert sound",
             AlertSounds.byId(Model.S.snd).name,
             Icons.Rounded.NotificationsActive
+        ),
+        MenuItem(
+            "ambient", "Ambient sound",
+            if (Model.S.amb == "off") "Off" else AmbientSounds.byId(Model.S.amb).name + " · plays while you focus",
+            Icons.Rounded.MusicNote
         ),
         if (islandOn) MenuItem(
             "island", "Hyper Island",
@@ -335,6 +346,60 @@ private fun SoundPage() {
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(Icons.Rounded.PlayArrow, contentDescription = "Preview ${snd.name}", tint = p.ink, modifier = Modifier.size(20.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AmbientPage() {
+    val p = pal()
+    val current = Model.S.amb
+    AppCard {
+        H2("Background sound")
+        Mut(
+            "A calm loop that plays only while a focus session is running. It pauses with the timer and stops during breaks. Everything is stored in the app, so it works offline. You can also tap the sound pill on the home screen to switch quickly.",
+            size = 12.sp,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+        AmbientSounds.all.forEachIndexed { i, snd ->
+            if (i > 0) ItemDivider()
+            val on = snd.id == current
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { Model.setAmbient(snd.id) }
+                    .padding(vertical = 12.dp)
+            ) {
+                Box(
+                    Modifier
+                        .size(22.dp)
+                        .border(2.dp, if (on) p.a else p.line, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (on) Box(Modifier.size(10.dp).background(p.a, CircleShape))
+                }
+                Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
+                    Text(
+                        snd.name,
+                        style = TextStyle(fontFamily = Sora, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal, fontSize = 15.sp),
+                        color = if (on) p.a else p.ink
+                    )
+                    Mut(snd.hint, size = 12.sp, modifier = Modifier.padding(top = 2.dp))
+                }
+                if (snd.id != "off") {
+                    Box(
+                        Modifier
+                            .size(38.dp)
+                            .background(p.inp, CircleShape)
+                            .border(1.dp, p.line, CircleShape)
+                            .clickable { Model.previewAmbient(snd.id) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Rounded.PlayArrow, contentDescription = "Preview ${snd.name}", tint = p.ink, modifier = Modifier.size(20.dp))
+                    }
                 }
             }
         }

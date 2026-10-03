@@ -38,7 +38,10 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.VolumeOff
 import androidx.compose.material.icons.rounded.TrackChanges
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -70,6 +73,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.devfahim00.zerostudy.AmbientSounds
 import com.devfahim00.zerostudy.Model
 import com.devfahim00.zerostudy.fmtNum
 import com.devfahim00.zerostudy.hm
@@ -115,6 +119,9 @@ private fun Pills() {
     val today = Model.todaySec()
     val gd = Model.S.goal.d
     val exams = Model.upcomingExams().take(3)
+    val level = Model.levelOf(Model.S.xp)
+    val (inLevel, levelNeed) = Model.levelProgress()
+    val amb = Model.S.amb
     FlowRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
@@ -122,6 +129,12 @@ private fun Pills() {
     ) {
         Pill(Icons.Rounded.LocalFireDepartment, "$streak ${if (streak == 1) "day" else "days"}")
         Pill(Icons.Rounded.TrackChanges, hm(today) + (if (gd > 0) " / " + hm((gd * 3600).toLong()) else ""))
+        Pill(Icons.Rounded.Star, "Lv $level · $inLevel/$levelNeed XP")
+        Pill(
+            if (amb == "off") Icons.Rounded.VolumeOff else Icons.Rounded.MusicNote,
+            if (amb == "off") "Sound off" else AmbientSounds.byId(amb).name,
+            onClick = { Model.cycleAmbient() }
+        )
         exams.forEach { (exam, days) ->
             val name = exam.n.ifBlank { "Exam" }
             Pill(
