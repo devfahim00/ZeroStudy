@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#05060A"/>
+      <stop offset="1" stop-color="#141830"/>
+    </linearGradient>
+    <linearGradient id="g" x1="24" y1="24" x2="86" y2="86" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7CC4FF"/>
+      <stop offset="1" stop-color="#A78BFA"/>
+    </linearGradient>
+    <linearGradient id="t" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7CC4FF"/>
+      <stop offset="1" stop-color="#A78BFA"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.2" cy="0.5" r="0.6">
+      <stop offset="0" stop-color="#7CC4FF" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#7CC4FF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="300" rx="24" fill="url(#bg)"/>
+  <rect width="1200" height="300" rx="24" fill="url(#glow)"/>
+  <g transform="translate(110 62) scale(1.67)">
+    <rect width="108" height="108" rx="26" fill="#0A0C12" stroke="#262B3D" stroke-width="1"/>
+    <circle cx="54" cy="54" r="23.75" fill="none" stroke="#1B1E29" stroke-width="4.5"/>
+    <circle cx="54" cy="54" r="23.75" fill="none" stroke="url(#g)" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="112 150" transform="rotate(-90 54 54)"/>
+    <path d="M40,44 L68,44 L40,66 L68,66" fill="none" stroke="#E8EBF2" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="330" y="146" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="84" font-weight="700" fill="url(#t)">ZeroStudy</text>
+  <text x="334" y="196" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" fill="#AEB6CC">Focus. Revise. Level up.</text>
+  <text x="334" y="236" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" fill="#6E7691">A beautiful focus &amp; study tracker for Android</text>
+</svg>
