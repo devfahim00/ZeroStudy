@@ -11,6 +11,7 @@
 [![Latest release](https://img.shields.io/github/v/release/devfahim00/ZeroStudy?cacheSeconds=600&style=for-the-badge&logo=github&color=A78BFA&labelColor=0A0C12)](https://github.com/devfahim00/ZeroStudy/releases/latest)
 [![Total downloads](https://img.shields.io/github/downloads/devfahim00/ZeroStudy/total?cacheSeconds=600&style=for-the-badge&logo=cloudflarepages&logoColor=white&color=7CC4FF&labelColor=0A0C12&label=Total%20Downloads)](https://github.com/devfahim00/ZeroStudy/releases)
 [![Latest downloads](https://img.shields.io/github/downloads/devfahim00/ZeroStudy/latest/total?cacheSeconds=600&style=for-the-badge&logo=android&logoColor=white&color=3DDC84&labelColor=0A0C12&label=Latest%20Release)](https://github.com/devfahim00/ZeroStudy/releases/latest)
+[![Visits](https://komarev.com/ghpvc/?username=devfahim00-ZeroStudy&label=Total%20Visits&style=for-the-badge&color=F472B6&labelColor=0A0C12&abbreviated=false)](https://github.com/devfahim00/ZeroStudy)
 
 [![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white&labelColor=0A0C12)](#-requirements)
 [![Kotlin](https://img.shields.io/badge/Kotlin-7F52FF?style=flat-square&logo=kotlin&logoColor=white&labelColor=0A0C12)](#-built-with)
