@@ -8,15 +8,15 @@
 &nbsp;
 [![Join Telegram](https://img.shields.io/badge/Join-Telegram-26A5E4?style=for-the-badge&logo=telegram&logoColor=white&labelColor=0A0C12)](https://t.me/projectredfox)
 
-[![Latest release](https://img.shields.io/github/v/release/devfahim00/ZeroStudy?style=for-the-badge&logo=github&color=A78BFA&labelColor=0A0C12)](https://github.com/devfahim00/ZeroStudy/releases/latest)
-[![Total downloads](https://img.shields.io/github/downloads/devfahim00/ZeroStudy/total?style=for-the-badge&logo=cloudflarepages&logoColor=white&color=7CC4FF&labelColor=0A0C12&label=Total%20Downloads)](https://github.com/devfahim00/ZeroStudy/releases)
-[![Latest downloads](https://img.shields.io/github/downloads/devfahim00/ZeroStudy/latest/total?style=for-the-badge&logo=android&logoColor=white&color=3DDC84&labelColor=0A0C12&label=Latest%20Release)](https://github.com/devfahim00/ZeroStudy/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/devfahim00/ZeroStudy?cacheSeconds=600&style=for-the-badge&logo=github&color=A78BFA&labelColor=0A0C12)](https://github.com/devfahim00/ZeroStudy/releases/latest)
+[![Total downloads](https://img.shields.io/github/downloads/devfahim00/ZeroStudy/total?cacheSeconds=600&style=for-the-badge&logo=cloudflarepages&logoColor=white&color=7CC4FF&labelColor=0A0C12&label=Total%20Downloads)](https://github.com/devfahim00/ZeroStudy/releases)
+[![Latest downloads](https://img.shields.io/github/downloads/devfahim00/ZeroStudy/latest/total?cacheSeconds=600&style=for-the-badge&logo=android&logoColor=white&color=3DDC84&labelColor=0A0C12&label=Latest%20Release)](https://github.com/devfahim00/ZeroStudy/releases/latest)
 
 [![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white&labelColor=0A0C12)](#-requirements)
 [![Kotlin](https://img.shields.io/badge/Kotlin-7F52FF?style=flat-square&logo=kotlin&logoColor=white&labelColor=0A0C12)](#-built-with)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white&labelColor=0A0C12)](#-built-with)
-[![Release date](https://img.shields.io/github/release-date/devfahim00/ZeroStudy?style=flat-square&logo=githubactions&logoColor=white&labelColor=0A0C12&label=Updated)](https://github.com/devfahim00/ZeroStudy/releases/latest)
-[![Stars](https://img.shields.io/github/stars/devfahim00/ZeroStudy?style=flat-square&logo=github&labelColor=0A0C12)](https://github.com/devfahim00/ZeroStudy/stargazers)
+[![Release date](https://img.shields.io/github/release-date/devfahim00/ZeroStudy?cacheSeconds=600&style=flat-square&logo=githubactions&logoColor=white&labelColor=0A0C12&label=Updated)](https://github.com/devfahim00/ZeroStudy/releases/latest)
+[![Stars](https://img.shields.io/github/stars/devfahim00/ZeroStudy?cacheSeconds=600&style=flat-square&logo=github&labelColor=0A0C12)](https://github.com/devfahim00/ZeroStudy/stargazers)
 [![Offline](https://img.shields.io/badge/100%25-Offline-F5A524?style=flat-square&logo=wifi&logoColor=white&labelColor=0A0C12)](#-privacy)
 
 </div>
