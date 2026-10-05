@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.5] - 2026-10-05
+
+### New
+- **Encrypted backups.** Export now saves an encrypted `.zsbackup` file that only ZeroStudy can read, and Import decrypts and restores it. A file that was edited, or a plain JSON file, is rejected, so exported data can no longer be changed (for example to add study time) and imported back.
+
+### Changed
+- **Home: pending revisions is now one plain line** ("N revisions pending") with no card. It is hidden when nothing is pending, and the next-revision date is gone.
+- **Plan tab: the Level box is removed**, because Level is already on the home screen.
+- **Rain ambient sound replaced** with a calm, gentle rain recording that loops without a gap.
+
+### Note
+- Backups exported with v1.3.4 or older are plain files and cannot be imported anymore. Export again from this version to get an encrypted backup.
+
 ## [1.3.4] - 2026-10-05
 
 ### New
