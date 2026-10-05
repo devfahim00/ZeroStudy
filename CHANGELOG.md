@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.4] - 2026-10-05
+
+### New
+- **Study heatmap colors.** Settings has a new "Study heatmap" page where you pick the heatmap colors: GitHub green (default), Purple, Orange, Pink, Mono, or the app accent color. The Stats tab updates right away and the colors adapt to dark / light mode.
+
+### Changed
+- **Home revision card is now just a status.** It shows how many revisions are pending and when the next one is due ("Next revision in N days"). The subject-wise list with Done / Forgot is only in the Revisions tab.
+- **Plan tab no longer shows revisions due today** (the box and the list), because they are in the Revisions tab. The Level box now takes the full width.
+- **New defaults:** timer 45 min focus + 10 min break, goals 8 h daily and 50 h weekly, alert sound Success, revision schedule 3, 7, 15, 30 days with max 3 revisions per day. These apply to new installs; your saved settings are not overwritten.
+- Hyper Island in Settings now just says On / Off.
+
+### Fixed
+- **Rain ambient sound redone.** The old rain sounded like TV static. It is replaced by a soft, slow, anime-style rain: gentle patter and small water drops with a warm, airy tone and no harsh hiss. It still loops without a gap.
+
 ## [1.3.3] - 2026-10-03
 
 ### Changed
