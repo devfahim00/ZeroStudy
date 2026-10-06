@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.5.0] - 2026-10-06
+
+### New
+- **Timer profiles.** Make named profiles (for example Default and Work). Each profile keeps its own session time, the subject you started with, and its own focus and break length.
+- **Pick a profile from Home.** Tap the profile pill on the Home screen to switch. A running timer is paused and kept in its own profile.
+- **Manage profiles in Settings > Timer.** Add, rename and delete profiles there. The Home screen now has a "Manage profiles" button that opens this page.
+- **Fine tune per profile.** Tap a profile in Settings > Timer to change its focus length, break length and presets.
+
+### Fixed
+- Editing a profile in Settings no longer selects it on the Home screen. The active profile only changes when you pick it on Home.
+
 ## [1.4.0] - 2026-10-06
 
 ### New
