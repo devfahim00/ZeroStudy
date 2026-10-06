@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.0] - 2026-10-06
+
+### New
+- **Export report (PDF or PNG).** The Stats tab has a new "Export report" button. Choose Daily, Weekly, Monthly or Custom, then PDF or PNG, and save a nicely designed report with the ZeroStudy logo and name, your totals, a graph or heatmap, a subject-wise breakdown, and a QR code that links to the app download page.
+- **Custom dates.** Pick any single day or any date range (up to one year). One day gives a Daily-style report. A short range gives a day-by-day graph, and a longer range gives a heatmap.
+- Weekly, Monthly and Custom reports show Total, Sessions, Daily average and Average session. The Daily average counts only the days you actually studied. Daily reports show Total, Sessions, Average session and Longest session.
+- Reports follow your app theme (dark or light) and your chosen heatmap colors, and many subjects are fitted neatly into the page.
+
 ## [1.3.5] - 2026-10-05
 
 ### New
